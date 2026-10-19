@@ -1,0 +1,756 @@
+[
+  {
+    "id": "demo-lakeshore-hacks",
+    "name": "Lakeshore Hacks 2026 (Demo)",
+    "organizer": "Lakeshore Student Tech Society (fictional)",
+    "type": "hackathon",
+    "description": "A fictional 30-hour student hackathon with workshops for first-timers, mentors on site, and an AI track.",
+    "officialUrl": "https://example.org/demo/lakeshore-hacks",
+    "applyUrl": "https://example.org/demo/lakeshore-hacks/apply",
+    "format": "in-person",
+    "location": {
+      "venue": "Fictional Hall, Lakeshore Institute of Technology",
+      "city": "Waterloo",
+      "region": "ON",
+      "country": "Canada"
+    },
+    "timezone": "America/Toronto",
+    "start": "2026-11-14T09:00:00-05:00",
+    "end": "2026-11-15T17:00:00-05:00",
+    "applicationDeadline": "2026-11-01T23:59:00-05:00",
+    "exactCutoffUnknown": false,
+    "eligibility": {
+      "studentStatusRequired": true,
+      "universities": "any",
+      "programs": "any",
+      "years": "any",
+      "experienceLevels": "any",
+      "otherRequirements": null
+    },
+    "teamSize": {
+      "min": 1,
+      "max": 4
+    },
+    "registrationFee": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "travelCostEstimate": {
+      "amount": 40,
+      "currency": "CAD"
+    },
+    "lodgingSupport": "none",
+    "foodSupport": "full",
+    "travelSupport": "partial",
+    "tags": [
+      "AI",
+      "Web"
+    ],
+    "beginnerFriendly": true,
+    "sourceUrl": "https://example.org/demo/lakeshore-hacks/details",
+    "lastVerified": "2026-10-12",
+    "evidence": {
+      "applicationDeadline": {
+        "quote": "Applications close November 1 at 11:59 PM ET.",
+        "sourceUrl": "https://example.org/demo/lakeshore-hacks/details"
+      },
+      "registrationFee": {
+        "quote": "Participation is free for all accepted hackers.",
+        "sourceUrl": "https://example.org/demo/lakeshore-hacks/details"
+      },
+      "travelCostEstimate": {
+        "quote": "Most attendees spend about $40 CAD on transit.",
+        "sourceUrl": "https://example.org/demo/lakeshore-hacks/faq"
+      },
+      "travelSupport": {
+        "quote": "Limited travel reimbursements of up to $25 are available.",
+        "sourceUrl": "https://example.org/demo/lakeshore-hacks/faq"
+      },
+      "lodgingSupport": {
+        "quote": "We do not provide overnight accommodation.",
+        "sourceUrl": "https://example.org/demo/lakeshore-hacks/faq"
+      },
+      "foodSupport": {
+        "quote": "All meals are provided during the event.",
+        "sourceUrl": "https://example.org/demo/lakeshore-hacks/faq"
+      },
+      "eligibility.studentStatusRequired": {
+        "quote": "Open to any currently enrolled university or college student.",
+        "sourceUrl": "https://example.org/demo/lakeshore-hacks/details"
+      },
+      "eligibility.universities": {
+        "quote": "Students from any school are welcome.",
+        "sourceUrl": "https://example.org/demo/lakeshore-hacks/details"
+      },
+      "beginnerFriendly": {
+        "quote": "Never been to a hackathon? We run a beginner track all weekend.",
+        "sourceUrl": "https://example.org/demo/lakeshore-hacks/details"
+      }
+    }
+  },
+  {
+    "id": "demo-harbor-climate-datathon",
+    "name": "Harbor Climate Datathon (Demo)",
+    "organizer": "Harbor State Data Club (fictional)",
+    "type": "competition",
+    "description": "A fictional one-day online datathon analysing open climate datasets. Starter notebooks provided.",
+    "officialUrl": "https://example.org/demo/harbor-climate-datathon",
+    "applyUrl": "https://example.org/demo/harbor-climate-datathon/apply",
+    "format": "online",
+    "location": null,
+    "timezone": "America/Toronto",
+    "start": "2026-11-07T10:00:00-05:00",
+    "end": "2026-11-07T18:00:00-05:00",
+    "applicationDeadline": "2026-11-03T12:00:00-05:00",
+    "exactCutoffUnknown": false,
+    "eligibility": {
+      "studentStatusRequired": true,
+      "universities": "any",
+      "programs": "any",
+      "years": "any",
+      "experienceLevels": "any",
+      "otherRequirements": null
+    },
+    "teamSize": {
+      "min": 1,
+      "max": 3
+    },
+    "registrationFee": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "travelCostEstimate": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "lodgingSupport": null,
+    "foodSupport": null,
+    "travelSupport": null,
+    "tags": [
+      "Data science",
+      "Climate"
+    ],
+    "beginnerFriendly": true,
+    "sourceUrl": "https://example.org/demo/harbor-climate-datathon/details",
+    "lastVerified": "2026-10-12",
+    "evidence": {
+      "applicationDeadline": {
+        "quote": "Register by noon ET on November 3.",
+        "sourceUrl": "https://example.org/demo/harbor-climate-datathon/details"
+      },
+      "registrationFee": {
+        "quote": "Free to enter.",
+        "sourceUrl": "https://example.org/demo/harbor-climate-datathon/details"
+      },
+      "eligibility.studentStatusRequired": {
+        "quote": "Any current student may enter.",
+        "sourceUrl": "https://example.org/demo/harbor-climate-datathon/details"
+      },
+      "beginnerFriendly": {
+        "quote": "Starter notebooks and a beginner walkthrough are provided.",
+        "sourceUrl": "https://example.org/demo/harbor-climate-datathon/details"
+      }
+    }
+  },
+  {
+    "id": "demo-northbridge-robotics-weekend",
+    "name": "Northbridge Robotics Weekend (Demo)",
+    "organizer": "Northbridge University Robotics Lab (fictional)",
+    "type": "workshop",
+    "description": "A fictional two-day hands-on robotics build weekend. Deadline has already passed in this demo.",
+    "officialUrl": "https://example.org/demo/northbridge-robotics-weekend",
+    "applyUrl": "https://example.org/demo/northbridge-robotics-weekend/apply",
+    "format": "in-person",
+    "location": {
+      "venue": "Fictional Engineering Annex",
+      "city": "Ottawa",
+      "region": "ON",
+      "country": "Canada"
+    },
+    "timezone": "America/Toronto",
+    "start": "2026-10-24T09:00:00-04:00",
+    "end": "2026-10-25T16:00:00-04:00",
+    "applicationDeadline": "2026-10-05T23:59:00-04:00",
+    "exactCutoffUnknown": false,
+    "eligibility": {
+      "studentStatusRequired": true,
+      "universities": [
+        "Northbridge University"
+      ],
+      "programs": [
+        "Computer Engineering",
+        "Electrical Engineering",
+        "Mechanical Engineering",
+        "Systems Design Engineering",
+        "Computer Science"
+      ],
+      "years": "any",
+      "experienceLevels": [
+        "intermediate",
+        "advanced"
+      ],
+      "otherRequirements": null
+    },
+    "teamSize": {
+      "min": 2,
+      "max": 3
+    },
+    "registrationFee": {
+      "amount": 25,
+      "currency": "CAD"
+    },
+    "travelCostEstimate": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "lodgingSupport": "none",
+    "foodSupport": "partial",
+    "travelSupport": "none",
+    "tags": [
+      "Robotics",
+      "Hardware"
+    ],
+    "beginnerFriendly": false,
+    "sourceUrl": "https://example.org/demo/northbridge-robotics-weekend/details",
+    "lastVerified": "2026-10-12",
+    "evidence": {
+      "applicationDeadline": {
+        "quote": "Sign-ups close October 5.",
+        "sourceUrl": "https://example.org/demo/northbridge-robotics-weekend/details"
+      },
+      "registrationFee": {
+        "quote": "A $25 materials fee applies.",
+        "sourceUrl": "https://example.org/demo/northbridge-robotics-weekend/details"
+      },
+      "eligibility.universities": {
+        "quote": "Open to Northbridge University students only.",
+        "sourceUrl": "https://example.org/demo/northbridge-robotics-weekend/details"
+      },
+      "eligibility.programs": {
+        "quote": "Intended for Computer, Electrical, Mechanical, and Systems Design Engineering, and Computer Science students.",
+        "sourceUrl": "https://example.org/demo/northbridge-robotics-weekend/details"
+      },
+      "eligibility.experienceLevels": {
+        "quote": "Participants should have prior experience with microcontrollers.",
+        "sourceUrl": "https://example.org/demo/northbridge-robotics-weekend/details"
+      },
+      "travelCostEstimate": {
+        "quote": "On campus, so no travel for Northbridge students.",
+        "sourceUrl": "https://example.org/demo/northbridge-robotics-weekend/details"
+      }
+    }
+  },
+  {
+    "id": "demo-quiet-signal-security-summit",
+    "name": "Quiet Signal Security Summit (Demo)",
+    "organizer": "Quiet Signal Collective (fictional)",
+    "type": "conference",
+    "description": "A fictional two-day security conference with talks and a capture-the-flag room. Pricing has not been published.",
+    "officialUrl": "https://example.org/demo/quiet-signal-security-summit",
+    "applyUrl": "https://example.org/demo/quiet-signal-security-summit/apply",
+    "format": "in-person",
+    "location": {
+      "venue": null,
+      "city": "Montreal",
+      "region": "QC",
+      "country": "Canada"
+    },
+    "timezone": "America/Toronto",
+    "start": "2026-12-03T09:00:00-05:00",
+    "end": "2026-12-04T17:00:00-05:00",
+    "applicationDeadline": "2026-11-20T23:59:59-05:00",
+    "exactCutoffUnknown": true,
+    "eligibility": {
+      "studentStatusRequired": null,
+      "universities": "any",
+      "programs": "any",
+      "years": "any",
+      "experienceLevels": "any",
+      "otherRequirements": null
+    },
+    "teamSize": null,
+    "registrationFee": null,
+    "travelCostEstimate": null,
+    "lodgingSupport": null,
+    "foodSupport": null,
+    "travelSupport": null,
+    "tags": [
+      "Security"
+    ],
+    "beginnerFriendly": null,
+    "sourceUrl": "https://example.org/demo/quiet-signal-security-summit/details",
+    "lastVerified": "2026-10-12",
+    "evidence": {
+      "applicationDeadline": {
+        "quote": "Student registration closes November 20 (no time given).",
+        "sourceUrl": "https://example.org/demo/quiet-signal-security-summit/details"
+      },
+      "eligibility.universities": {
+        "quote": "Everyone is welcome to attend.",
+        "sourceUrl": "https://example.org/demo/quiet-signal-security-summit/details"
+      }
+    }
+  },
+  {
+    "id": "demo-pinecone-design-jam",
+    "name": "Pinecone Design Jam (Demo)",
+    "organizer": "Pinecone Studio (fictional)",
+    "type": "workshop",
+    "description": "A fictional one-day UX design workshop. The listing does not say who can attend.",
+    "officialUrl": "https://example.org/demo/pinecone-design-jam",
+    "applyUrl": "https://example.org/demo/pinecone-design-jam/apply",
+    "format": "in-person",
+    "location": {
+      "venue": "Fictional Loft",
+      "city": "Toronto",
+      "region": "ON",
+      "country": "Canada"
+    },
+    "timezone": "America/Toronto",
+    "start": "2026-10-31T10:00:00-04:00",
+    "end": "2026-10-31T16:00:00-04:00",
+    "applicationDeadline": "2026-10-28T17:00:00-04:00",
+    "exactCutoffUnknown": false,
+    "eligibility": {
+      "studentStatusRequired": null,
+      "universities": null,
+      "programs": null,
+      "years": null,
+      "experienceLevels": null,
+      "otherRequirements": null
+    },
+    "teamSize": null,
+    "registrationFee": {
+      "amount": 15,
+      "currency": "CAD"
+    },
+    "travelCostEstimate": {
+      "amount": 30,
+      "currency": "CAD"
+    },
+    "lodgingSupport": null,
+    "foodSupport": "partial",
+    "travelSupport": null,
+    "tags": [
+      "Design",
+      "Web"
+    ],
+    "beginnerFriendly": true,
+    "sourceUrl": "https://example.org/demo/pinecone-design-jam/details",
+    "lastVerified": "2026-10-12",
+    "evidence": {
+      "applicationDeadline": {
+        "quote": "RSVP by Oct 28, 5 PM.",
+        "sourceUrl": "https://example.org/demo/pinecone-design-jam/details"
+      },
+      "registrationFee": {
+        "quote": "Tickets are $15.",
+        "sourceUrl": "https://example.org/demo/pinecone-design-jam/details"
+      },
+      "travelCostEstimate": {
+        "quote": "Round-trip regional transit is around $30 CAD.",
+        "sourceUrl": "https://example.org/demo/pinecone-design-jam/getting-here"
+      },
+      "beginnerFriendly": {
+        "quote": "No design experience needed.",
+        "sourceUrl": "https://example.org/demo/pinecone-design-jam/details"
+      }
+    }
+  },
+  {
+    "id": "demo-fernwood-fintech-challenge",
+    "name": "Fernwood Fintech Challenge (Demo)",
+    "organizer": "Fernwood Business School (fictional)",
+    "type": "competition",
+    "description": "A fictional three-day case competition for upper-year and graduate students. Travel and hotel covered for finalists.",
+    "officialUrl": "https://example.org/demo/fernwood-fintech-challenge",
+    "applyUrl": "https://example.org/demo/fernwood-fintech-challenge/apply",
+    "format": "hybrid",
+    "location": {
+      "venue": "Fictional Exchange Center",
+      "city": "Vancouver",
+      "region": "BC",
+      "country": "Canada"
+    },
+    "timezone": "America/Vancouver",
+    "start": "2027-01-22T09:00:00-08:00",
+    "end": "2027-01-24T15:00:00-08:00",
+    "applicationDeadline": "2026-12-15T23:59:00-08:00",
+    "exactCutoffUnknown": false,
+    "eligibility": {
+      "studentStatusRequired": true,
+      "universities": "any",
+      "programs": [
+        "Business",
+        "Economics",
+        "Finance",
+        "Computer Science"
+      ],
+      "years": [
+        "3",
+        "4",
+        "graduate"
+      ],
+      "experienceLevels": "any",
+      "otherRequirements": [
+        "Each team must include at least one student from a business-related program."
+      ]
+    },
+    "teamSize": {
+      "min": 3,
+      "max": 4
+    },
+    "registrationFee": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "travelCostEstimate": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "lodgingSupport": "full",
+    "foodSupport": "full",
+    "travelSupport": "full",
+    "tags": [
+      "Fintech",
+      "Data science"
+    ],
+    "beginnerFriendly": false,
+    "sourceUrl": "https://example.org/demo/fernwood-fintech-challenge/details",
+    "lastVerified": "2026-10-12",
+    "evidence": {
+      "applicationDeadline": {
+        "quote": "Team applications are due December 15, 11:59 PM PT.",
+        "sourceUrl": "https://example.org/demo/fernwood-fintech-challenge/details"
+      },
+      "registrationFee": {
+        "quote": "There is no entry fee.",
+        "sourceUrl": "https://example.org/demo/fernwood-fintech-challenge/details"
+      },
+      "travelSupport": {
+        "quote": "Travel and hotel are covered for in-person finalists.",
+        "sourceUrl": "https://example.org/demo/fernwood-fintech-challenge/faq"
+      },
+      "lodgingSupport": {
+        "quote": "Travel and hotel are covered for in-person finalists.",
+        "sourceUrl": "https://example.org/demo/fernwood-fintech-challenge/faq"
+      },
+      "eligibility.programs": {
+        "quote": "Open to students in Business, Economics, Finance, or Computer Science.",
+        "sourceUrl": "https://example.org/demo/fernwood-fintech-challenge/details"
+      },
+      "eligibility.years": {
+        "quote": "Third-year, fourth-year, and graduate students may apply.",
+        "sourceUrl": "https://example.org/demo/fernwood-fintech-challenge/details"
+      },
+      "eligibility.otherRequirements": {
+        "quote": "At least one team member must be in a business-related program.",
+        "sourceUrl": "https://example.org/demo/fernwood-fintech-challenge/details"
+      }
+    }
+  },
+  {
+    "id": "demo-cedar-careers-fair",
+    "name": "Cedar Tech Careers Fair (Demo)",
+    "organizer": "Cedar Consortium Career Services (fictional)",
+    "type": "career-fair",
+    "description": "A fictional drop-in career fair for students at two partner schools. No registration deadline published.",
+    "officialUrl": "https://example.org/demo/cedar-careers-fair",
+    "applyUrl": null,
+    "format": "in-person",
+    "location": {
+      "venue": "Fictional Convention Hall",
+      "city": "Waterloo",
+      "region": "ON",
+      "country": "Canada"
+    },
+    "timezone": "America/Toronto",
+    "start": "2026-10-29T11:00:00-04:00",
+    "end": "2026-10-29T17:00:00-04:00",
+    "applicationDeadline": null,
+    "exactCutoffUnknown": false,
+    "eligibility": {
+      "studentStatusRequired": true,
+      "universities": [
+        "Harbor State University",
+        "Lakeshore Institute of Technology"
+      ],
+      "programs": "any",
+      "years": "any",
+      "experienceLevels": "any",
+      "otherRequirements": null
+    },
+    "teamSize": null,
+    "registrationFee": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "travelCostEstimate": {
+      "amount": 20,
+      "currency": "CAD"
+    },
+    "lodgingSupport": null,
+    "foodSupport": null,
+    "travelSupport": null,
+    "tags": [
+      "Careers"
+    ],
+    "beginnerFriendly": true,
+    "sourceUrl": "https://example.org/demo/cedar-careers-fair/details",
+    "lastVerified": "2026-10-12",
+    "evidence": {
+      "eligibility.universities": {
+        "quote": "Open to Harbor State and Lakeshore Institute students with valid ID.",
+        "sourceUrl": "https://example.org/demo/cedar-careers-fair/details"
+      },
+      "registrationFee": {
+        "quote": "Free, no registration required.",
+        "sourceUrl": "https://example.org/demo/cedar-careers-fair/details"
+      }
+    }
+  },
+  {
+    "id": "demo-gradient-ai-research-workshop",
+    "name": "Gradient AI Research Workshop (Demo)",
+    "organizer": "Gradient Research Group (fictional)",
+    "type": "workshop",
+    "description": "A fictional online afternoon workshop on reading and reproducing ML papers, for graduate students.",
+    "officialUrl": "https://example.org/demo/gradient-ai-research-workshop",
+    "applyUrl": "https://example.org/demo/gradient-ai-research-workshop/apply",
+    "format": "online",
+    "location": null,
+    "timezone": "America/Toronto",
+    "start": "2026-12-10T13:00:00-05:00",
+    "end": "2026-12-10T17:00:00-05:00",
+    "applicationDeadline": "2026-11-30T23:59:00-05:00",
+    "exactCutoffUnknown": false,
+    "eligibility": {
+      "studentStatusRequired": true,
+      "universities": "any",
+      "programs": "any",
+      "years": [
+        "graduate"
+      ],
+      "experienceLevels": [
+        "intermediate",
+        "advanced"
+      ],
+      "otherRequirements": null
+    },
+    "teamSize": null,
+    "registrationFee": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "travelCostEstimate": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "lodgingSupport": null,
+    "foodSupport": null,
+    "travelSupport": null,
+    "tags": [
+      "AI",
+      "Data science"
+    ],
+    "beginnerFriendly": false,
+    "sourceUrl": "https://example.org/demo/gradient-ai-research-workshop/details",
+    "lastVerified": "2026-10-12",
+    "evidence": {
+      "applicationDeadline": {
+        "quote": "Apply by November 30.",
+        "sourceUrl": "https://example.org/demo/gradient-ai-research-workshop/details"
+      },
+      "eligibility.years": {
+        "quote": "Open to master's and PhD students.",
+        "sourceUrl": "https://example.org/demo/gradient-ai-research-workshop/details"
+      },
+      "eligibility.experienceLevels": {
+        "quote": "Assumes familiarity with PyTorch.",
+        "sourceUrl": "https://example.org/demo/gradient-ai-research-workshop/details"
+      }
+    }
+  },
+  {
+    "id": "demo-tidepool-health-hack",
+    "name": "Tidepool Health Hack (Demo)",
+    "organizer": "Tidepool Health Lab (fictional)",
+    "type": "hackathon",
+    "description": "A fictional three-day health-tech hackathon. Exact application cutoff time and travel costs are not published.",
+    "officialUrl": "https://example.org/demo/tidepool-health-hack",
+    "applyUrl": "https://example.org/demo/tidepool-health-hack/apply",
+    "format": "in-person",
+    "location": {
+      "venue": "Fictional Medical Campus",
+      "city": "Toronto",
+      "region": "ON",
+      "country": "Canada"
+    },
+    "timezone": "America/Toronto",
+    "start": "2027-02-19T17:00:00-05:00",
+    "end": "2027-02-21T15:00:00-05:00",
+    "applicationDeadline": "2027-01-15T23:59:59-05:00",
+    "exactCutoffUnknown": true,
+    "eligibility": {
+      "studentStatusRequired": true,
+      "universities": "any",
+      "programs": "any",
+      "years": "any",
+      "experienceLevels": "any",
+      "otherRequirements": [
+        "Must be 18 or older on the first day of the event."
+      ]
+    },
+    "teamSize": {
+      "min": 2,
+      "max": 5
+    },
+    "registrationFee": {
+      "amount": 50,
+      "currency": "CAD"
+    },
+    "travelCostEstimate": null,
+    "lodgingSupport": "partial",
+    "foodSupport": "full",
+    "travelSupport": "none",
+    "tags": [
+      "Health tech",
+      "AI"
+    ],
+    "beginnerFriendly": true,
+    "sourceUrl": "https://example.org/demo/tidepool-health-hack/details",
+    "lastVerified": "2026-10-12",
+    "evidence": {
+      "applicationDeadline": {
+        "quote": "Applications due January 15.",
+        "sourceUrl": "https://example.org/demo/tidepool-health-hack/details"
+      },
+      "registrationFee": {
+        "quote": "$50 registration, refunded if you attend.",
+        "sourceUrl": "https://example.org/demo/tidepool-health-hack/details"
+      },
+      "lodgingSupport": {
+        "quote": "A limited number of shared rooms are available.",
+        "sourceUrl": "https://example.org/demo/tidepool-health-hack/faq"
+      },
+      "eligibility.otherRequirements": {
+        "quote": "All participants must be 18+.",
+        "sourceUrl": "https://example.org/demo/tidepool-health-hack/details"
+      }
+    }
+  },
+  {
+    "id": "demo-pixel-forge-game-jam",
+    "name": "Pixel Forge Game Jam (Demo)",
+    "organizer": "Pixel Forge Community (fictional)",
+    "type": "hackathon",
+    "description": "A fictional 48-hour online game jam open to everyone, students or not. Sign-ups close soon.",
+    "officialUrl": "https://example.org/demo/pixel-forge-game-jam",
+    "applyUrl": "https://example.org/demo/pixel-forge-game-jam/apply",
+    "format": "online",
+    "location": null,
+    "timezone": "America/Toronto",
+    "start": "2026-11-20T18:00:00-05:00",
+    "end": "2026-11-22T18:00:00-05:00",
+    "applicationDeadline": "2026-10-18T23:59:00-04:00",
+    "exactCutoffUnknown": false,
+    "eligibility": {
+      "studentStatusRequired": false,
+      "universities": "any",
+      "programs": "any",
+      "years": "any",
+      "experienceLevels": "any",
+      "otherRequirements": null
+    },
+    "teamSize": {
+      "min": 1,
+      "max": 4
+    },
+    "registrationFee": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "travelCostEstimate": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "lodgingSupport": null,
+    "foodSupport": null,
+    "travelSupport": null,
+    "tags": [
+      "Game dev",
+      "Design"
+    ],
+    "beginnerFriendly": true,
+    "sourceUrl": "https://example.org/demo/pixel-forge-game-jam/details",
+    "lastVerified": "2026-10-12",
+    "evidence": {
+      "applicationDeadline": {
+        "quote": "Sign-ups close October 18 at 11:59 PM ET.",
+        "sourceUrl": "https://example.org/demo/pixel-forge-game-jam/details"
+      },
+      "eligibility.studentStatusRequired": {
+        "quote": "Anyone can join, student or not.",
+        "sourceUrl": "https://example.org/demo/pixel-forge-game-jam/details"
+      }
+    }
+  },
+  {
+    "id": "demo-switchyard-web-meetup",
+    "name": "Switchyard Web Meetup (Demo)",
+    "organizer": "Switchyard Developers (fictional)",
+    "type": "meetup",
+    "description": "A fictional evening meetup with lightning talks. RSVPs close today, but no cutoff time is given.",
+    "officialUrl": "https://example.org/demo/switchyard-web-meetup",
+    "applyUrl": "https://example.org/demo/switchyard-web-meetup/apply",
+    "format": "in-person",
+    "location": {
+      "venue": "Fictional Co-working Space",
+      "city": "Waterloo",
+      "region": "ON",
+      "country": "Canada"
+    },
+    "timezone": "America/Toronto",
+    "start": "2026-10-22T18:00:00-04:00",
+    "end": "2026-10-22T20:30:00-04:00",
+    "applicationDeadline": "2026-10-17T23:59:59-04:00",
+    "exactCutoffUnknown": true,
+    "eligibility": {
+      "studentStatusRequired": false,
+      "universities": "any",
+      "programs": "any",
+      "years": "any",
+      "experienceLevels": "any",
+      "otherRequirements": null
+    },
+    "teamSize": null,
+    "registrationFee": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "travelCostEstimate": {
+      "amount": 10,
+      "currency": "CAD"
+    },
+    "lodgingSupport": null,
+    "foodSupport": "partial",
+    "travelSupport": null,
+    "tags": [
+      "Web",
+      "Careers"
+    ],
+    "beginnerFriendly": true,
+    "sourceUrl": "https://example.org/demo/switchyard-web-meetup/details",
+    "lastVerified": "2026-10-12",
+    "evidence": {
+      "applicationDeadline": {
+        "quote": "RSVP by October 17.",
+        "sourceUrl": "https://example.org/demo/switchyard-web-meetup/details"
+      },
+      "registrationFee": {
+        "quote": "Free event.",
+        "sourceUrl": "https://example.org/demo/switchyard-web-meetup/details"
+      }
+    }
+  }
+]
