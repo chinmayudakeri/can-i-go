@@ -66,6 +66,15 @@ export function formatDate(iso: string, timeZone?: string): string {
   );
 }
 
+/** "devfest.example.org" from a URL, without "www.". */
+export function sourceHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
 export function formatEventDates(opp: Opportunity): string {
   const opts: Intl.DateTimeFormatOptions = { timeZone: opp.timezone, month: "short", day: "numeric", year: "numeric" };
   const fmt = new Intl.DateTimeFormat("en-US", opts);

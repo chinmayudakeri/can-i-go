@@ -1,8 +1,11 @@
-.env
-.env.local
+# Secrets: never commit .env files (only the empty template)
+.env*
+!.env.example
 node_modules/
 .next/
 .DS_Store
 next-env.d.ts
 *.tsbuildinfo
 coverage/
+# Temp files from atomic writes in data/real
+data/real/*.tmp

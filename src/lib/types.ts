@@ -151,6 +151,12 @@ export interface Opportunity {
   beginnerFriendly: boolean | null;
 
   sourceUrl: string;
+  /**
+   * Which dataset this came from. Stamped by the source when it loads data
+   * (DemoSource → "demo", RealSource → "real"), never read from stored JSON,
+   * so a file can't make demo data look real. Anything not "real" is shown as DEMO.
+   */
+  dataset?: "demo" | "real";
   /** Real listings only: every page this event was found on, after deduplication (includes `sourceUrl`). */
   sourceUrls?: string[];
   /** ISO 8601 date the details were last checked against the source. */

@@ -380,6 +380,19 @@ main {
   color: var(--muted);
 }
 
+.chip-demo {
+  border-color: var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.chip-source {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
 .chip-accent {
   border-color: var(--accent);
   color: var(--accent);
@@ -609,6 +622,28 @@ main {
 
 .source-footer p {
   margin: 0.2rem 0;
+}
+
+.source-footer ul {
+  margin: 0.2rem 0;
+  padding-left: 1.2rem;
+}
+
+.source-footer .demo-note {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.feed-section + .feed-section {
+  margin-top: 2rem;
+}
+
+.feed-section h2 {
+  margin-bottom: 0.2rem;
+}
+
+.feed-section > .muted {
+  margin-bottom: 0.8rem;
 }
 
 /* Profile */

@@ -1,5 +1,6 @@
 import type { Opportunity } from "@/lib/types";
 import { DemoSource } from "./demoSource";
+import { RealSource } from "./realSource";
 import type { OpportunitySource } from "./types";
 
 export type { OpportunitySource } from "./types";
@@ -19,4 +20,4 @@ export class CombinedSource implements OpportunitySource {
 }
 
 /** Register new sources here. */
-export const opportunitySource: OpportunitySource = new CombinedSource([new DemoSource()]);
+export const opportunitySource: OpportunitySource = new CombinedSource([new RealSource(), new DemoSource()]);

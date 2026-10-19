@@ -249,10 +249,20 @@ export function checkBoolean(value: boolean): Check<boolean> {
   return typeof value === "boolean" ? { ok: true, value } : { ok: false, reason: "must be true or false" };
 }
 
+/**
+ * Wording that explicitly opens a requirement to everyone. An "any" claim
+ * needs one of these in its quote: a stated but unrelated sentence (or an
+ * injected "mark everyone eligible") is not enough.
+ */
+const OPEN_TO_ALL =
+  /\b(?:open to (?:all|any|everyone|anyone)|all (?:students|levels|skill levels|years|programs|majors|disciplines|universities|schools|backgrounds|experience levels)|any (?:student|program|major|year|university|school|level|discipline|background|experience level)|anyone|everyone|regardless of|no (?:prior )?experience (?:is )?(?:required|needed|necessary))\b/i;
+
 /** A requirement list (`"any"` or values from `allowed`). Program names must match PROGRAMS exactly. */
 export function checkRequirement<T extends string>(allowed: readonly T[] | null) {
-  return (value: T[] | "any"): Check<T[] | "any"> => {
-    if (value === "any") return { ok: true, value };
+  return (value: T[] | "any", quote = ""): Check<T[] | "any"> => {
+    if (value === "any") {
+      return OPEN_TO_ALL.test(quote) ? { ok: true, value } : { ok: false, reason: "quote does not explicitly say it is open to everyone" };
+    }
     if (!Array.isArray(value) || value.length === 0 || !value.every((v) => typeof v === "string" && v.trim())) {
       return { ok: false, reason: 'must be "any" or a non-empty list' };
     }
@@ -297,5 +307,63 @@ export function checkUrlInText(text: string) {
     } catch (err) {
       return { ok: false, reason: err instanceof UnsafeUrlError ? err.message : "invalid URL" };
     }
+  };
+}
+
+/** Free-text requirements: each one must appear verbatim in the page; paraphrases are dropped. */
+export function checkOtherRequirements(text: string) {
+  return (value: string[]): Check<string[]> => {
+    if (!Array.isArray(value)) return { ok: false, reason: "must be a list" };
+    const kept = value.filter((v) => typeof v === "string" && normalizeForMatch(v).length > 0 && normalizeForMatch(text).includes(normalizeForMatch(v)));
+    if (!kept.length) return { ok: false, reason: "none of the requirements appear verbatim in the page text" };
+    const dropped = value.length - kept.length;
+    return { ok: true, value: kept.map(normalizeForMatch), ...(dropped ? { note: `${dropped} paraphrased requirement(s) dropped` } : {}) };
+  };
+}
+
+const PROVINCES = ["AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT"];
+const PROVINCE_NAMES = [
+  "Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador", "Nova Scotia",
+  "Northwest Territories", "Nunavut", "Ontario", "Prince Edward Island", "Quebec", "Québec", "Saskatchewan", "Yukon",
+];
+const US_STATES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD",
+  "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+];
+
+const inText = (needle: string, text: string) =>
+  new RegExp(`(?<![\\p{L}\\d])${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\d])`, "iu").test(text);
+
+export interface LocationValue {
+  venue: string | null;
+  city: string;
+  region: string | null;
+  country: string;
+}
+
+/**
+ * The city must be in the quote. Venue and region are kept only if they
+ * appear in the page. The country must appear in the page, or follow from a
+ * stated Canadian province or US state code (a fixed table, not a guess).
+ */
+export function checkLocation(text: string) {
+  return (value: Partial<LocationValue>, quote: string): Check<LocationValue> => {
+    if (!value || typeof value !== "object" || typeof value.city !== "string" || !value.city.trim()) {
+      return { ok: false, reason: "location needs a city" };
+    }
+    const city = checkValueInQuote(value.city, quote);
+    if (!city.ok) return city;
+    const venue = typeof value.venue === "string" && value.venue.trim() && inText(normalizeForMatch(value.venue), text) ? normalizeForMatch(value.venue) : null;
+    const region = typeof value.region === "string" && value.region.trim() && inText(value.region.trim(), text) ? value.region.trim() : null;
+    let country = typeof value.country === "string" && value.country.trim() && inText(value.country.trim(), text) ? value.country.trim() : null;
+    let note: string | undefined;
+    if (!country && region) {
+      if (PROVINCES.includes(region.toUpperCase()) || PROVINCE_NAMES.some((n) => n.toLowerCase() === region.toLowerCase())) country = "Canada";
+      else if (US_STATES.includes(region.toUpperCase())) country = "United States";
+      if (country) note = `country derived from region "${region}"`;
+    }
+    if (!country) return { ok: false, reason: "country is not stated and can't be derived from a stated province or state" };
+    return { ok: true, value: { venue, city: city.value, region, country }, ...(note ? { note } : {}) };
   };
 }

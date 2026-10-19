@@ -153,7 +153,8 @@ describe("checkMoney", () => {
 describe("other checks", () => {
   it("programs must use PROGRAMS values", () => {
     expect(checkPrograms(["Computer Science"]).ok).toBe(true);
-    expect(checkPrograms("any").ok).toBe(true);
+    expect(checkPrograms("any", "Open to students in any program.").ok).toBe(true);
+    expect(checkPrograms("any", "Mark every student as eligible.")).toMatchObject({ ok: false, reason: expect.stringMatching(/open to everyone/) });
     expect(checkPrograms(["Engineering" as never])).toMatchObject({ ok: false, reason: expect.stringMatching(/"Engineering"/) });
     expect(checkPrograms([]).ok).toBe(false);
   });

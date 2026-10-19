@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo } from "react";
 import { CostList } from "@/components/CostList";
+import { DatasetLabel } from "@/components/DatasetLabel";
 import { DeadlineText } from "@/components/DeadlineText";
 import { EligibilityBadge } from "@/components/EligibilityBadge";
 import { EvidenceNote } from "@/components/EvidenceNote";
@@ -72,6 +73,7 @@ function EventDetail({
   const now = useNow();
   const item = useMemo(() => buildFeedItem(o, profile, now), [o, profile, now]);
   const { eligibility, deadline, costs, relevance } = item;
+  const sources = [...new Set([o.sourceUrl, ...(o.sourceUrls ?? [])])];
 
   return (
     <article className="detail">
@@ -81,6 +83,7 @@ function EventDetail({
 
       <header className="detail-header">
         <div className="chips">
+          <DatasetLabel opportunity={o} />
           <span className="chip">{TYPE_LABELS[o.type]}</span>
           <span className="chip">{FORMAT_LABELS[o.format]}</span>
           {o.beginnerFriendly === true && <span className="chip chip-accent">Beginner friendly</span>}
@@ -203,12 +206,28 @@ function EventDetail({
       </section>
 
       <footer className="source-footer">
-        <p>
-          Source:{" "}
-          <a href={o.sourceUrl} target="_blank" rel="noreferrer">
-            {o.sourceUrl}
-          </a>
-        </p>
+        {o.dataset !== "real" && <p className="demo-note">DEMO: this event is fictional.</p>}
+        {sources.length > 1 ? (
+          <>
+            <p>Sources:</p>
+            <ul>
+              {sources.map((url) => (
+                <li key={url}>
+                  <a href={url} target="_blank" rel="noreferrer">
+                    {url}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p>
+            Source:{" "}
+            <a href={o.sourceUrl} target="_blank" rel="noreferrer">
+              {o.sourceUrl}
+            </a>
+          </p>
+        )}
         <p>Last verified: {formatDate(`${o.lastVerified}T12:00:00Z`, "UTC")}</p>
       </footer>
     </article>

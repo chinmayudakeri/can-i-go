@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import realListings from "@data/real/listings.json";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,7 +26,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </nav>
         </header>
         <div className="demo-banner" role="note">
-          Demo mode: every event shown is fictional. Calendar and AI checks are not connected yet.
+          {realListings.length > 0
+            ? "Events marked DEMO are fictional. Real listings show their source and when they were last verified."
+            : "Demo mode: every event shown is fictional."}{" "}
+          Calendar checks are not connected yet.
         </div>
         <main id="main">{children}</main>
       </body>

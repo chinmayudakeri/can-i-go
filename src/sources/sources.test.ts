@@ -5,6 +5,7 @@ import { NOW, makeOpportunity } from "@/lib/testFixtures";
 import { InvalidOpportunityError, parseOpportunities } from "@/lib/validate";
 import type { Opportunity } from "@/lib/types";
 import { DemoSource } from "./demoSource";
+import { RealSource } from "./realSource";
 import { CombinedSource, type OpportunitySource } from "./index";
 
 const fixed = (name: string, opps: Opportunity[]): OpportunitySource => ({
@@ -48,6 +49,24 @@ describe("DemoSource", () => {
     expect(opps.some((o) => o.eligibility.universities === null)).toBe(true);
     expect(opps.some((o) => o.format === "online")).toBe(true);
     expect(opps.some((o) => o.format === "hybrid")).toBe(true);
+  });
+});
+
+describe("RealSource", () => {
+  it("loads reviewed listings (none yet) and stamps them as real", async () => {
+    const opps = await new RealSource().getOpportunities();
+    expect(Array.isArray(opps)).toBe(true);
+    for (const o of opps) {
+      expect(o.dataset).toBe("real");
+      expect(o.id).toMatch(/^real-/);
+    }
+  });
+
+  it("keeps demo and real data apart: demo events are stamped demo, ids never overlap", async () => {
+    const demo = await new DemoSource().getOpportunities();
+    const real = await new RealSource().getOpportunities();
+    expect(demo.every((o) => o.dataset === "demo" && o.id.startsWith("demo-"))).toBe(true);
+    expect(real.some((o) => demo.some((d) => d.id === o.id))).toBe(false);
   });
 });
 

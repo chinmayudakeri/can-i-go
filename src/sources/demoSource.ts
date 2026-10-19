@@ -8,6 +8,6 @@ export class DemoSource implements OpportunitySource {
 
   async getOpportunities(): Promise<Opportunity[]> {
     const mod = await import("@data/demo.json");
-    return parseOpportunities(mod.default, this.name);
+    return parseOpportunities(mod.default, this.name).map((o) => ({ ...o, dataset: "demo" as const }));
   }
 }

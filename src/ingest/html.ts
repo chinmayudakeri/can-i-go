@@ -4,7 +4,7 @@
  * and nothing in it can change what the pipeline does.
  */
 
-const DROPPED_ELEMENTS = ["script", "style", "noscript", "template", "svg", "iframe", "object", "embed", "head", "canvas", "math"];
+const DROPPED_ELEMENTS = ["title", "script", "style", "noscript", "template", "svg", "iframe", "object", "embed", "head", "canvas", "math"];
 const BLOCK_TAGS =
   "address|article|aside|blockquote|br|dd|details|div|dl|dt|figcaption|figure|footer|form|h[1-6]|header|hr|main|nav|ol|p|pre|section|summary|table|tbody|td|tfoot|th|thead|tr|ul";
 

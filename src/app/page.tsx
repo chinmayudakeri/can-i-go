@@ -9,7 +9,7 @@ import { useNow } from "@/hooks/useNow";
 import { useOpportunities } from "@/hooks/useOpportunities";
 import { useProfile } from "@/hooks/useProfile";
 import { ELIGIBILITY_LABELS } from "@/lib/eligibility";
-import { DEFAULT_FILTERS, getFeed, getFilterOptions, type FeedFilters, type SortKey } from "@/lib/feed";
+import { DEFAULT_FILTERS, getFeed, getFilterOptions, type FeedFilters, type FeedItem, type SortKey } from "@/lib/feed";
 import { parseFeedParams, toFeedParams } from "@/lib/feedParams";
 import { TYPE_LABELS } from "@/lib/format";
 import type { Opportunity, StudentProfile } from "@/lib/types";
@@ -268,13 +268,64 @@ function Feed({ opportunities, profile }: { opportunities: Opportunity[]; profil
             </button>
           </StateMessage>
         ) : (
-          <div className="cards">
-            {items.map((item) => (
-              <OpportunityCard key={item.opportunity.id} item={item} now={now} />
-            ))}
-          </div>
+          <>
+            <FeedSection
+              id="real-listings"
+              title="Real listings"
+              note="Reviewed events from real sources. Each shows its source and when it was last verified."
+              items={items.filter((i) => i.opportunity.dataset === "real")}
+              empty={
+                opportunities.some((o) => o.dataset === "real")
+                  ? "No real listings match these filters."
+                  : "No real listings have been reviewed yet."
+              }
+              now={now}
+            />
+            <FeedSection
+              id="demo-listings"
+              title="Demo (fictional)"
+              note="Made-up events for trying the app. None of these are real."
+              items={items.filter((i) => i.opportunity.dataset !== "real")}
+              empty="No demo events match these filters."
+              now={now}
+            />
+          </>
         )}
       </section>
     </div>
+  );
+}
+
+function FeedSection({
+  id,
+  title,
+  note,
+  items,
+  empty,
+  now,
+}: {
+  id: string;
+  title: string;
+  note: string;
+  items: FeedItem[];
+  empty: string;
+  now: Date;
+}) {
+  return (
+    <section className="feed-section" aria-labelledby={id}>
+      <h2 id={id}>
+        {title} <span className="muted small">({items.length})</span>
+      </h2>
+      <p className="muted small">{note}</p>
+      {items.length === 0 ? (
+        <p className="muted">{empty}</p>
+      ) : (
+        <div className="cards">
+          {items.map((item) => (
+            <OpportunityCard key={item.opportunity.id} item={item} now={now} />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

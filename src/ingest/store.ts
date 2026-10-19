@@ -1,8 +1,9 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Opportunity } from "@/lib/types";
 import { parseOpportunities } from "@/lib/validate";
+import { parseFeedConfigs, type FeedConfig } from "./adapters";
 import type { IngestState, ItemState, PendingRecord } from "./types";
 
 /**
@@ -15,10 +16,7 @@ export const DEFAULT_DATA_DIR = path.join(process.cwd(), "data", "real");
 
 export class StoreError extends Error {}
 
-/** sha256 of page text, used to skip extraction when a page hasn't changed. */
-export function hashText(text: string): string {
-  return createHash("sha256").update(text, "utf8").digest("hex");
-}
+export { hashText } from "./hash";
 
 async function readJson<T>(file: string, fallback: T): Promise<T> {
   let raw: string;
@@ -77,11 +75,8 @@ function validatePending(raw: unknown, file: string): PendingRecord[] {
       (rec.updateOf === null || typeof rec.updateOf === "string");
     if (!ok) throw new StoreError(`${file}[${i}]: malformed pending record`);
   }
-  parseOpportunities(
-    raw.map((r: PendingRecord) => r.opportunity),
-    file,
-    { real: true },
-  );
+  // Validated one by one: two sources may propose the same event (same id) until review merges them.
+  raw.forEach((r: PendingRecord, i) => parseOpportunities([r.opportunity], `${file}[${i}]`, { real: true }));
   return raw as PendingRecord[];
 }
 
@@ -90,6 +85,7 @@ export function createStore(dir: string = DEFAULT_DATA_DIR) {
     pending: path.join(dir, "pending.json"),
     listings: path.join(dir, "listings.json"),
     state: path.join(dir, "state.json"),
+    feeds: path.join(dir, "feeds.json"),
   };
 
   return {
@@ -110,6 +106,10 @@ export function createStore(dir: string = DEFAULT_DATA_DIR) {
     async writePending(records: PendingRecord[]): Promise<void> {
       validatePending(records, "pending.json");
       await writeJsonAtomic(files.pending, records);
+    },
+
+    async readFeeds(): Promise<FeedConfig[]> {
+      return parseFeedConfigs(await readJson<unknown>(files.feeds, []));
     },
 
     async readState(): Promise<IngestState> {

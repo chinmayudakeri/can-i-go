@@ -1,14 +1,16 @@
 {
   "name": "can-i-go",
   "version": "1.0.0",
-  "description": "Can I Go? — find student opportunities and check whether you can actually go.",
+  "description": "Can I Go? \u2014 find student opportunities and check whether you can actually go.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "ingest": "tsx scripts/ingest.ts",
+    "review": "tsx scripts/review.ts"
   },
   "repository": {
     "type": "git",
@@ -31,11 +33,13 @@
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "fast-xml-parser": "^5.11.2",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
   },
   "private": true,
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=20.12.0"
   }
 }

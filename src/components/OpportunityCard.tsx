@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { FeedItem } from "@/lib/feed";
 import { FORMAT_LABELS, TYPE_LABELS, formatEventDates, formatPlace } from "@/lib/format";
 import { CostList } from "./CostList";
+import { DatasetLabel } from "./DatasetLabel";
 import { DeadlineText } from "./DeadlineText";
 import { EligibilityBadge } from "./EligibilityBadge";
 import { RelevanceReasons } from "./RelevanceReasons";
@@ -14,6 +15,7 @@ export function OpportunityCard({ item, now }: { item: FeedItem; now: Date }) {
     <article className={`card${deadline.kind === "passed" ? " card-passed" : ""}`}>
       <header className="card-header">
         <div className="chips">
+          <DatasetLabel opportunity={o} />
           <span className="chip">{TYPE_LABELS[o.type]}</span>
           <span className="chip">{FORMAT_LABELS[o.format]}</span>
           {o.beginnerFriendly && <span className="chip chip-accent">Beginner friendly</span>}
