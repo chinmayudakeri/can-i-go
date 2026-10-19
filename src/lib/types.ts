@@ -74,9 +74,11 @@ export interface EventLocation {
 
 /** Where a fact came from, so the UI can show it next to the claim. */
 export interface Evidence {
-  /** Short excerpt or paraphrase from the source. */
+  /** Short excerpt or paraphrase from the source. Real listings: verbatim from the fetched page. */
   quote: string;
   sourceUrl: string;
+  /** Real listings only: whether the source states the value or it was inferred from context. */
+  basis?: "stated" | "inferred";
 }
 
 /** A list of accepted values, `"any"` (explicitly open), or `null` (unknown). */
@@ -149,6 +151,8 @@ export interface Opportunity {
   beginnerFriendly: boolean | null;
 
   sourceUrl: string;
+  /** Real listings only: every page this event was found on, after deduplication (includes `sourceUrl`). */
+  sourceUrls?: string[];
   /** ISO 8601 date the details were last checked against the source. */
   lastVerified: string;
   evidence: Partial<Record<EvidenceField, Evidence>>;
