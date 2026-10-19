@@ -24,6 +24,20 @@ describe("DemoSource", () => {
     }
   });
 
+  it("writes every date with the UTC offset its timezone actually has on that date", async () => {
+    const offsetIn = (timeZone: string, iso: string) => {
+      const name = new Intl.DateTimeFormat("en-CA", { timeZone, timeZoneName: "longOffset" })
+        .formatToParts(new Date(iso))
+        .find((p) => p.type === "timeZoneName")!.value;
+      return name === "GMT" ? "+00:00" : name.replace("GMT", "");
+    };
+    for (const o of await new DemoSource().getOpportunities()) {
+      for (const iso of [o.start, o.end, o.applicationDeadline]) {
+        if (iso) expect(`${o.id} ${iso.slice(-6)}`).toBe(`${o.id} ${offsetIn(o.timezone, iso)}`);
+      }
+    }
+  });
+
   it("covers the edge cases the UI must handle", async () => {
     const opps = await new DemoSource().getOpportunities();
     const kinds = opps.map((o) => getDeadlineStatus(o, NOW).kind);
