@@ -85,7 +85,7 @@ src/app/                Pages: / (Discover), /events/[id], /profile
 
 1. Get a free Gemini API key at https://aistudio.google.com/apikey.
 2. Copy `.env.example` to `.env` and paste the key after `GEMINI_API_KEY=`. `.env` is gitignored; never commit it. The key is only read by `npm run ingest`; the web app never sees it.
-3. Optional: set `GEMINI_MODEL` if the default (`gemini-2.5-flash`) is retired. Check the [model list](https://ai.google.dev/gemini-api/docs/models).
+3. Optional: set `GEMINI_MODEL` if the default (`gemini-3.8-flash`) is retired. Check the [model list](https://ai.google.dev/gemini-api/docs/models).
 
 The free tier may use what you send to improve Google's products. Only public event page text is sent.
 
@@ -141,7 +141,7 @@ For any other site, `robots.txt` is checked automatically before every request (
 - **Required facts.** No name, type, format, timezone, start, end (or location for in-person events) means no listing.
 - **Untrusted text.** HTML is stripped (scripts, comments, invisible characters). The model has no tools, and its output is parsed into a fixed schema. Unknown keys are ignored, and ids, sources and dates are set by code. Page text can't change which URLs are fetched, the call cap, or where records go: always to pending, never straight to the app.
 - **Safe fetching.** Only public `http(s)` URLs, with no credentials or custom ports. Private, loopback, link-local and metadata addresses are refused, both before the request and at connect time (so DNS rebinding doesn't work), and every redirect is re-checked. Requests are capped at 15 s and 2 MB, with 1 request per second per site.
-- **Cost control.** Each page's text is hashed, so an unchanged page makes no AI call, and an unchanged approved page just gets its `lastVerified` date bumped. Each run makes at most 20 calls by default, retries included, and rate limits back off exponentially. An invalid key or model stops the run on the first error.
+- **Cost control.** Each page's text is hashed, so an unchanged page makes no AI call, and an unchanged approved page just gets its `lastVerified` date bumped. Each run makes at most 20 calls by default, retries included. Only network timeouts and HTTP 429, 503 and 504 are retried, with exponential backoff. Anything else (bad request, other network errors, unexpected response shape, unparseable output) fails at once with its underlying cause. Response-shape errors list the HTTP status and the response's keys, never its content. An invalid key or model stops the run on the first error.
 - **Deduplication.** Same normalized name plus same local start date means the same event. Merging keeps every source URL and the latest verification date.
 - **Validation.** Every record is checked against the `Opportunity` type (real dates, end after start, deadline before the end, IANA timezone, ISO currency) before anything is written. Writes are atomic.
 - **Known limit.** A page that plainly *states* a false fact will pass the quote check, because it really is on the page. That's why every record needs your approval.

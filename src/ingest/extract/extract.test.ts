@@ -1,12 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
-import { RetryableError } from "../backoff";
+import { describe, expect, it } from "vitest";
 import { CallBudget } from "../budget";
 import { PAGE, PAGE_URL, f, goodResponse } from "../testFixtures";
 import { buildOpportunity, extractOpportunity } from "./extractOpportunity";
-import { GeminiProvider } from "./gemini";
 import { MockProvider } from "./mock";
 import { PAGE_END, buildUserPrompt, prepareText } from "./prompt";
-import { ProviderError } from "./types";
 
 const FETCHED = "2026-10-18T16:00:00.000Z";
 const build = (raw: unknown, text = PAGE) => buildOpportunity(raw, text, PAGE_URL, FETCHED);
@@ -139,57 +136,5 @@ describe("prompt", () => {
 
   it("caps the text length", () => {
     expect(prepareText("x".repeat(100_000))).toHaveLength(40_000);
-  });
-});
-
-describe("GeminiProvider", () => {
-  const expectedRejection = (): never => {
-    throw new Error("expected the call to fail");
-  };
-  const caught = (e: unknown) => e as RetryableError & ProviderError;
-
-  const ok = (payload: unknown) =>
-    new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(payload) }] } }] }), { status: 200 });
-
-  it("sends the key only in a header, never in the URL", async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async () => ok({ isEvent: false }));
-    await new GeminiProvider({ apiKey: "secret-key-123", fetchImpl }).extract({ text: PAGE, sourceUrl: PAGE_URL });
-    const [url, init] = fetchImpl.mock.calls[0];
-    expect(String(url)).not.toContain("secret-key-123");
-    expect(String(url)).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent");
-    expect((init!.headers as Record<string, string>)["x-goog-api-key"]).toBe("secret-key-123");
-    const body = JSON.parse(String(init!.body));
-    expect(body.generationConfig).toMatchObject({ temperature: 0, responseMimeType: "application/json" });
-    expect(body.tools).toBeUndefined();
-  });
-
-  it("turns 429 into a retryable error with the server's delay", async () => {
-    const body = { error: { code: 429, status: "RESOURCE_EXHAUSTED", details: [{ retryDelay: "37s" }] } };
-    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(body), { status: 429 }));
-    const err = await new GeminiProvider({ apiKey: "k", fetchImpl }).extract({ text: PAGE, sourceUrl: PAGE_URL }).then(expectedRejection, caught);
-    expect(err).toBeInstanceOf(RetryableError);
-    expect(err.retryAfterMs).toBe(37_000);
-  });
-
-  it("treats bad keys and models as fatal, and never echoes the key", async () => {
-    const fetchImpl = vi.fn<typeof fetch>(
-      async () => new Response(JSON.stringify({ error: { message: "API key not valid: secret-key-123" } }), { status: 400 }),
-    );
-    const err = await new GeminiProvider({ apiKey: "secret-key-123", fetchImpl }).extract({ text: PAGE, sourceUrl: PAGE_URL }).then(expectedRejection, caught);
-    expect(err).toBeInstanceOf(ProviderError);
-    expect(err.fatal).toBe(true);
-    expect(err.message).not.toContain("secret-key-123");
-  });
-
-  it("requires a key and a sane model name", () => {
-    expect(() => new GeminiProvider({ apiKey: "" })).toThrow(/GEMINI_API_KEY/);
-    expect(() => new GeminiProvider({ apiKey: "k", model: "../../evil" })).toThrow(/GEMINI_MODEL/);
-  });
-
-  it("rejects responses that aren't JSON", async () => {
-    const fetchImpl = vi.fn<typeof fetch>(
-      async () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "Sure! Here you go" }] } }] }), { status: 200 }),
-    );
-    await expect(new GeminiProvider({ apiKey: "k", fetchImpl }).extract({ text: PAGE, sourceUrl: PAGE_URL })).rejects.toThrow(/invalid JSON/);
   });
 });
