@@ -8,7 +8,7 @@ import { ProviderError, type ExtractionProvider } from "./extract/types";
 import { hashText } from "./hash";
 import type { Store } from "./store";
 import { waterlooDate } from "./time";
-import type { PendingRecord } from "./types";
+import type { FieldReport, PendingRecord } from "./types";
 
 export interface IngestOptions {
   adapters: SourceAdapter[];
@@ -28,8 +28,8 @@ export interface IngestReport {
   reverified: number;
   /** New records added to pending.json. */
   pending: number;
-  /** Extracted but rejected (missing required facts or invalid). */
-  rejected: { itemKey: string; reason: string }[];
+  /** Extracted but rejected (missing required facts or invalid), with every field's outcome for --show-rejected. */
+  rejected: { itemKey: string; sourceUrl: string; reason: string; fields: FieldReport[] }[];
   /** Adapters or documents that failed (network, blocked by policy/robots, provider error). Retried next run. */
   failed: { source: string; reason: string }[];
   /** Documents left for a later run because the call cap was reached. */
@@ -107,7 +107,11 @@ export async function runIngest(options: IngestOptions): Promise<IngestReport> {
         result = await extractOpportunity(doc.text, doc.sourceUrl, { provider, budget, fetchedAt: doc.fetchedAt, sleep });
       } catch (err) {
         if (err instanceof BudgetExhaustedError) {
-          report.deferred++;
+          if (err.lastError) {
+            // The call was made and failed; say why rather than silently deferring.
+            report.failed.push({ source: doc.itemKey, reason: err.message });
+            log(`✗ ${doc.itemKey}: ${err.message}`);
+          } else report.deferred++;
           continue;
         }
         // Provider or network trouble: leave state untouched so the next run tries again.
@@ -122,7 +126,7 @@ export async function runIngest(options: IngestOptions): Promise<IngestReport> {
 
       if (!result.opportunity) {
         state[doc.itemKey] = { textHash, lastFetched: doc.fetchedAt, outcome: "failed" };
-        report.rejected.push({ itemKey: doc.itemKey, reason: result.rejectReason ?? "unknown" });
+        report.rejected.push({ itemKey: doc.itemKey, sourceUrl: doc.sourceUrl, reason: result.rejectReason ?? "unknown", fields: result.fields });
         log(`– ${doc.itemKey}: rejected (${result.rejectReason})`);
         continue;
       }
@@ -134,7 +138,7 @@ export async function runIngest(options: IngestOptions): Promise<IngestReport> {
       } catch (err) {
         if (!(err instanceof InvalidOpportunityError)) throw err;
         state[doc.itemKey] = { textHash, lastFetched: doc.fetchedAt, outcome: "failed" };
-        report.rejected.push({ itemKey: doc.itemKey, reason: err.message });
+        report.rejected.push({ itemKey: doc.itemKey, sourceUrl: doc.sourceUrl, reason: err.message, fields: result.fields });
         continue;
       }
 

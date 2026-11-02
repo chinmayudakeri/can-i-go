@@ -76,7 +76,14 @@ function wrap(text: string, width: number): string[] {
   return lines;
 }
 
-const formatValue = (v: unknown) => (v === null || v === undefined ? "—" : typeof v === "string" ? v : JSON.stringify(v));
+/** Readable and wrappable: objects as "key: value, …", lists comma-separated. */
+function formatValue(v: unknown): string {
+  if (v === null || v === undefined) return "—";
+  if (typeof v === "string") return v;
+  if (Array.isArray(v)) return v.length ? v.map(formatValue).join(", ") : "[]";
+  if (typeof v === "object") return Object.entries(v as Record<string, unknown>).map(([k, x]) => `${k}: ${JSON.stringify(x)}`).join(", ");
+  return String(v);
+}
 const MARK: Record<FieldReport["status"], string> = { kept: "✓", discarded: "✗", missing: "·" };
 
 /** Two columns: field/value/basis on the left, the supporting quote on the right. */
@@ -102,4 +109,28 @@ export function formatFieldTable(fields: FieldReport[], totalWidth = 100): strin
   const missing = fields.filter((f) => f.status === "missing").map((f) => f.field);
   if (missing.length) rows.push(terminalSafe(`Not stated (null): ${missing.join(", ")}`));
   return rows.join("\n");
+}
+
+export interface RejectedRecord {
+  itemKey: string;
+  sourceUrl: string;
+  reason: string;
+  fields: FieldReport[];
+}
+
+/**
+ * `npm run ingest -- --show-rejected`: every field of each rejected record
+ * (value, quote, basis, kept or discarded and why). Any `secrets` (the API
+ * key) are redacted from the output, even though page text should never
+ * contain them.
+ */
+export function formatRejected(rejected: RejectedRecord[], width = 100, secrets: string[] = []): string {
+  const redact = (s: string) => secrets.filter((k) => k.length >= 8).reduce((out, k) => out.replaceAll(k, "[redacted]"), s);
+  return rejected
+    .map((r) => {
+      const header = terminalSafe(`REJECTED ${r.itemKey}\nSource: ${r.sourceUrl}\nReason: ${r.reason}`);
+      const body = r.fields.length ? formatFieldTable(r.fields, width) : "(no fields: the model output could not be read)";
+      return redact(`${"═".repeat(width)}\n${header}\n${"─".repeat(width)}\n${body}`);
+    })
+    .join("\n\n");
 }

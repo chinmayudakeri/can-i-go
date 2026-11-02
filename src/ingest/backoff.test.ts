@@ -51,6 +51,16 @@ describe("withBackoff", () => {
     expect(fn).toHaveBeenCalledTimes(3);
   });
 
+  it("when the cap runs out mid-retry, reports the error it was retrying and doesn't sleep first", async () => {
+    const sleep = vi.fn(noSleep);
+    const fn = vi.fn<() => Promise<string>>().mockRejectedValue(new RetryableError("Gemini HTTP 503 UNAVAILABLE"));
+    const err = (await withBackoff(fn, { budget: new CallBudget(1), sleep }).catch((e: unknown) => e)) as BudgetExhaustedError;
+    expect(err).toBeInstanceOf(BudgetExhaustedError);
+    expect(err.lastError?.message).toBe("Gemini HTTP 503 UNAVAILABLE");
+    expect(err.message).toBe("extraction call cap reached (1 per run) while retrying after: Gemini HTTP 503 UNAVAILABLE");
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
   it("gives up after maxAttempts", async () => {
     const fn = vi.fn<() => Promise<string>>().mockRejectedValue(new RetryableError("503"));
     await expect(withBackoff(fn, { budget: new CallBudget(20), sleep: noSleep, maxAttempts: 4 })).rejects.toThrow("503");

@@ -97,8 +97,38 @@ describe("runIngest", () => {
     const docs = [1, 2, 3].map((i) => makeDoc({ itemKey: `k${i}`, text: `${PAGE}\n${i}` }));
     const report = await ingest(docs, provider, 7);
     expect(provider.calls).toHaveLength(7);
-    expect(report).toMatchObject({ callsUsed: 7, deferred: 2 });
-    expect(report.failed).toHaveLength(1);
+    expect(report).toMatchObject({ callsUsed: 7, deferred: 1 });
+    // Doc 1 gave up after 5 attempts; doc 2 ran out of calls mid-retry and says why; doc 3 never started.
+    expect(report.failed.map((x) => x.reason)).toEqual(["429", "extraction call cap reached (7 per run) while retrying after: 429"]);
+  });
+
+  it("explains a cap hit mid-retry instead of silently deferring (e.g. --max-calls 1 and a 503)", async () => {
+    const provider = new MockProvider(() => {
+      throw new RetryableError("Gemini HTTP 503 UNAVAILABLE (rate limited or busy)");
+    });
+    const report = await ingest([makeDoc()], provider, 1);
+    expect(provider.calls).toHaveLength(1);
+    expect(report).toMatchObject({ callsUsed: 1, deferred: 0 });
+    expect(report.failed).toEqual([
+      { source: makeDoc().itemKey, reason: "extraction call cap reached (1 per run) while retrying after: Gemini HTTP 503 UNAVAILABLE (rate limited or busy)" },
+    ]);
+    expect(await store.readState()).toEqual({}); // retried next run
+  });
+
+  it("keeps every field's outcome on rejected records (for --show-rejected)", async () => {
+    const provider = new MockProvider(() => goodResponse({ location: f({ venue: null, city: "London", region: null, country: null }, "Join us in London this fall") }));
+    const report = await ingest([makeDoc({ text: `${PAGE}\nJoin us in London this fall` })], provider);
+    expect(report.rejected).toHaveLength(1);
+    const [rejected] = report.rejected;
+    expect(rejected).toMatchObject({ itemKey: makeDoc().itemKey, sourceUrl: makeDoc().sourceUrl, reason: "required fields missing or unverified: location" });
+    expect(rejected.fields.find((x) => x.field === "location")).toMatchObject({
+      status: "discarded",
+      value: { city: "London", country: null },
+      quote: "Join us in London this fall",
+      basis: "stated",
+      reason: expect.stringMatching(/country is not stated/),
+    });
+    expect(rejected.fields.find((x) => x.field === "start")).toMatchObject({ status: "kept" });
   });
 
   it("backs off on a rate limit and then succeeds", async () => {

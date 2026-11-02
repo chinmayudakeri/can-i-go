@@ -1,7 +1,8 @@
 /**
  * npm run ingest                      → every feed in data/real/feeds.json
  * npm run ingest -- --url <link>      → one event page you chose
- * Options: --max-calls N (default 20), --dry-run (write nothing)
+ * Options: --max-calls N (default 20), --dry-run (write nothing),
+ *          --show-rejected (print every field of rejected records with its quote and why it was kept or discarded)
  *
  * Results go to data/real/pending.json for `npm run review`. Nothing is published without your approval.
  */
@@ -13,6 +14,7 @@ import { DEFAULT_GEMINI_MODEL, GeminiProvider } from "@/ingest/extract/gemini";
 import { createGuardedFetch } from "@/ingest/fetcher";
 import { runIngest } from "@/ingest/pipeline";
 import { checkSitePolicy } from "@/ingest/policy";
+import { formatRejected } from "@/ingest/review";
 import { parseSafeUrl } from "@/ingest/safeUrl";
 import { createStore } from "@/ingest/store";
 
@@ -27,11 +29,12 @@ async function main() {
       url: { type: "string", multiple: true },
       "max-calls": { type: "string" },
       "dry-run": { type: "boolean", default: false },
+      "show-rejected": { type: "boolean", default: false },
       help: { type: "boolean", default: false },
     },
   });
   if (values.help) {
-    console.log("Usage: npm run ingest [-- --url <link>] [--max-calls N] [--dry-run]");
+    console.log("Usage: npm run ingest [-- --url <link>] [--max-calls N] [--dry-run] [--show-rejected]");
     return;
   }
 
@@ -73,6 +76,12 @@ Rejected: ${report.rejected.length}
 Failed (retried next run): ${report.failed.length}
 Calls used: ${report.callsUsed}/${report.callCap}${report.deferred ? `; ${report.deferred} document(s) left for the next run` : ""}`);
   for (const r of report.rejected) console.log(`  rejected ${r.itemKey}: ${r.reason}`);
+  if (values["show-rejected"] && report.rejected.length) {
+    const width = Math.min(process.stdout.columns || 100, 140);
+    console.log(`\n${formatRejected(report.rejected, width, [process.env.GEMINI_API_KEY ?? ""])}`);
+  } else if (report.rejected.length) {
+    console.log("  (add --show-rejected to see every field, its quote, and why it was kept or discarded)");
+  }
   for (const f of report.failed) console.log(`  failed ${f.source}: ${f.reason}`);
   if (report.stoppedEarly) fail(`stopped early: ${report.stoppedEarly}`);
   if (report.pending) console.log("\nRun `npm run review` to approve or reject.");

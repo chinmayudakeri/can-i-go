@@ -7,8 +7,12 @@
 export const DEFAULT_MAX_CALLS = 20;
 
 export class BudgetExhaustedError extends Error {
-  constructor(readonly cap: number) {
-    super(`extraction call cap reached (${cap} per run)`);
+  constructor(
+    readonly cap: number,
+    /** The retryable error that was being retried when the cap ran out, if any. */
+    readonly lastError?: Error,
+  ) {
+    super(`extraction call cap reached (${cap} per run)${lastError ? ` while retrying after: ${lastError.message}` : ""}`);
   }
 }
 

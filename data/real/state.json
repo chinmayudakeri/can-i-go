@@ -1,1 +1,12 @@
-{}
+{
+  "page:https://hackwestern.com/register": {
+    "textHash": "7074dc99fef85736e8d21ca15ed14b1d5df53421963c9206d789d3245931b16e",
+    "lastFetched": "2026-10-23T18:21:17.811Z",
+    "outcome": "failed"
+  },
+  "page:https://hackwestern.com/": {
+    "textHash": "89ae3bc96b9532123577e7f0e1bcc367fe751c942b96c8d0c041de05cb7c88f1",
+    "lastFetched": "2026-11-02T18:46:54.715Z",
+    "outcome": "failed"
+  }
+}

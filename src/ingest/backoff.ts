@@ -1,4 +1,4 @@
-import type { CallBudget } from "./budget";
+import { BudgetExhaustedError, type CallBudget } from "./budget";
 
 /** Thrown by providers for rate limits (HTTP 429, RESOURCE_EXHAUSTED) and temporary outages (503). */
 export class RetryableError extends Error {
@@ -47,6 +47,8 @@ export async function withBackoff<T>(fn: () => Promise<T>, options: BackoffOptio
       return await fn();
     } catch (err) {
       if (!(err instanceof RetryableError) || attempt >= maxAttempts) throw err;
+      // Out of calls: report what we were retrying instead of sleeping first.
+      if (budget.remaining === 0) throw new BudgetExhaustedError(budget.cap, err);
       const exponential = Math.min(maxDelayMs, baseDelayMs * 2 ** (attempt - 1));
       const jittered = exponential / 2 + random() * (exponential / 2);
       await sleep(Math.min(maxDelayMs, Math.max(err.retryAfterMs ?? 0, jittered)));
