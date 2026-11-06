@@ -65,11 +65,15 @@ export interface Money {
   currency: string;
 }
 
+/**
+ * At least one of `venue` or `city` is known. `country` is null when the
+ * source doesn't state it ("Country not stated"); it is never derived.
+ */
 export interface EventLocation {
   venue: string | null;
-  city: string;
+  city: string | null;
   region: string | null;
-  country: string;
+  country: string | null;
 }
 
 /** Where a fact came from, so the UI can show it next to the claim. */
@@ -79,10 +83,20 @@ export interface Evidence {
   sourceUrl: string;
   /** Real listings only: whether the source states the value or it was inferred from context. */
   basis?: "stated" | "inferred";
+  /** Real listings only, dates: a separate verbatim fragment stating the time of day. */
+  timeQuote?: string;
 }
 
 /** A list of accepted values, `"any"` (explicitly open), or `null` (unknown). */
 export type Requirement<T> = T[] | "any" | null;
+
+export interface TimezoneConfirmation {
+  basis: "confirmed by reviewer";
+  /** How the reviewer verified it: a short note or a URL (e.g. the venue's official site). */
+  note: string;
+  /** YYYY-MM-DD. */
+  confirmedOn: string;
+}
 
 export interface EligibilityRequirements {
   /** Must the applicant be a currently enrolled student? */
@@ -123,6 +137,12 @@ export interface Opportunity {
   location: EventLocation | null;
   /** IANA timezone, e.g. "America/Toronto". */
   timezone: string;
+  /**
+   * Real listings only: set when the timezone couldn't be derived from the
+   * stated location and a reviewer typed it in `npm run review`. Never set by
+   * the AI or the page.
+   */
+  timezoneConfirmation?: TimezoneConfirmation;
   /** ISO 8601 with offset. */
   start: string;
   end: string;

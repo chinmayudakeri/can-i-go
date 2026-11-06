@@ -56,8 +56,7 @@ function matchesQuery(opp: Opportunity, query: string): boolean {
     opp.organizer,
     opp.description,
     opp.type,
-    opp.location?.city ?? "online",
-    opp.location?.country ?? "",
+    opp.location ? [opp.location.venue, opp.location.city, opp.location.country].filter(Boolean).join(" ") : "online",
     ...opp.tags,
   ]
     .join(" ")
@@ -147,6 +146,6 @@ export function getFilterOptions(opportunities: Opportunity[]) {
   return {
     types: unique(opportunities.map((o) => o.type)) as OpportunityType[],
     topics: unique(opportunities.flatMap((o) => o.tags)),
-    cities: unique(opportunities.flatMap((o) => (o.format !== "online" && o.location ? [o.location.city] : []))),
+    cities: unique(opportunities.flatMap((o) => (o.format !== "online" && o.location?.city ? [o.location.city] : []))),
   };
 }

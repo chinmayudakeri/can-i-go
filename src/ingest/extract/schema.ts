@@ -30,7 +30,19 @@ const field = (value: Schema): Schema => ({
   required: ["value", "quote", "basis"],
 });
 
-const DATE: Schema = { type: "STRING", description: 'Local time in the event timezone: "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm"' };
+const DATE: Schema = { type: "STRING", description: 'Local time at the event: "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm"' };
+
+/** A date field plus an optional separate verbatim fragment for the time of day. */
+const dateField = (): Schema => {
+  const base = field(DATE);
+  return {
+    ...base,
+    properties: {
+      ...(base.properties as Schema),
+      timeQuote: { type: "STRING", nullable: true, description: "Only if the time of day is stated in a different fragment than the date" },
+    },
+  };
+};
 const MONEY: Schema = {
   type: "OBJECT",
   properties: { amount: { type: "NUMBER" }, currency: { type: "STRING", description: "ISO 4217 code, e.g. CAD" } },
@@ -53,14 +65,13 @@ export const EXTRACTION_SCHEMA: Schema = {
     format: field(enumOf(EVENT_FORMATS)),
     location: field({
       type: "OBJECT",
-      properties: { venue: nullable(STRING), city: STRING, region: nullable(STRING), country: nullable(STRING) },
-      required: ["city"],
+      properties: { venue: nullable(STRING), city: nullable(STRING), region: nullable(STRING), country: nullable(STRING) },
+      required: ["venue", "city", "region", "country"],
     }),
-    timezone: field({ type: "STRING", description: 'IANA name, e.g. "America/Toronto"' }),
-    start: field(DATE),
-    end: field(DATE),
-    applicationDeadline: field(DATE),
-    officialUrl: field(STRING),
+    // No timezone (derived in code from the location) and no officialUrl (always the fetched page).
+    start: dateField(),
+    end: dateField(),
+    applicationDeadline: dateField(),
     applyUrl: field(STRING),
     eligibility: {
       type: "OBJECT",
@@ -84,8 +95,8 @@ export const EXTRACTION_SCHEMA: Schema = {
     beginnerFriendly: field({ type: "BOOLEAN" }),
   },
   required: [
-    "isEvent", "name", "organizer", "description", "type", "format", "location", "timezone", "start", "end",
-    "applicationDeadline", "officialUrl", "applyUrl", "eligibility", "teamSize", "registrationFee", "travelCostEstimate",
+    "isEvent", "name", "organizer", "description", "type", "format", "location", "start", "end",
+    "applicationDeadline", "applyUrl", "eligibility", "teamSize", "registrationFee", "travelCostEstimate",
     "lodgingSupport", "foodSupport", "travelSupport", "tags", "beginnerFriendly",
   ],
 };

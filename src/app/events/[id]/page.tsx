@@ -10,12 +10,14 @@ import { EligibilityBadge } from "@/components/EligibilityBadge";
 import { EvidenceNote } from "@/components/EvidenceNote";
 import { RelevanceReasons } from "@/components/RelevanceReasons";
 import { StateMessage } from "@/components/StateMessage";
+import { TimezoneSource } from "@/components/TimezoneSource";
 import { useNow } from "@/hooks/useNow";
 import { useOpportunities } from "@/hooks/useOpportunities";
 import { useProfile } from "@/hooks/useProfile";
 import { buildFeedItem } from "@/lib/feed";
 import {
   FORMAT_LABELS,
+  COUNTRY_NOT_STATED,
   SUPPORT_LABELS,
   TYPE_LABELS,
   formatDate,
@@ -112,11 +114,15 @@ function EventDetail({
           <dd>{formatDateTime(o.start, o.timezone)}</dd>
           <dt>Ends</dt>
           <dd>{formatDateTime(o.end, o.timezone)}</dd>
+          <dt>Timezone</dt>
+          <dd>
+            <TimezoneSource opportunity={o} />
+          </dd>
           <dt>Location</dt>
           <dd>
             {o.location && o.format !== "online" ? (
               <>
-                {[o.location.venue, o.location.city, o.location.region, o.location.country].filter(Boolean).join(", ")}
+                {[o.location.venue, o.location.city, o.location.region, o.location.country ?? COUNTRY_NOT_STATED].filter(Boolean).join(", ")}
                 {o.format === "hybrid" && " (or join online)"}
               </>
             ) : (

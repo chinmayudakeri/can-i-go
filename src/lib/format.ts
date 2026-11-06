@@ -81,11 +81,23 @@ export function formatEventDates(opp: Opportunity): string {
   return fmt.formatRange(new Date(opp.start), new Date(opp.end));
 }
 
+export const COUNTRY_NOT_STATED = "Country not stated";
+export const TIMEZONE_CONFIRMED_LABEL = "Timezone confirmed by reviewer";
+
+/** How a real listing's timezone was decided, for the detail page. Demo events have none. */
+export function describeTimezoneSource(opp: Opportunity): { label: string; detail: string | null } | null {
+  if (opp.dataset !== "real") return null;
+  const c = opp.timezoneConfirmation;
+  if (c) return { label: TIMEZONE_CONFIRMED_LABEL, detail: `on ${formatDate(`${c.confirmedOn}T12:00:00Z`, "UTC")}: ${c.note}` };
+  return { label: "Derived from the stated location", detail: null };
+}
+
 export function formatPlace(opp: Opportunity): string {
   if (opp.format === "online" || !opp.location) return "Online";
-  const { city, region } = opp.location;
-  const place = region ? `${city}, ${region}` : city;
-  return opp.format === "hybrid" ? `${place} or online` : place;
+  const { venue, city, region, country } = opp.location;
+  const place = [city ?? venue, region].filter(Boolean).join(", ");
+  const withCountry = country ? place : `${place} (${COUNTRY_NOT_STATED.toLowerCase()})`;
+  return opp.format === "hybrid" ? `${withCountry} or online` : withCountry;
 }
 
 export function describeDeadline(d: DeadlineStatus, opp: Opportunity, now: Date): { text: string; tone: "ok" | "warn" | "bad" | "muted" } {

@@ -116,19 +116,13 @@ describe("runIngest", () => {
   });
 
   it("keeps every field's outcome on rejected records (for --show-rejected)", async () => {
-    const provider = new MockProvider(() => goodResponse({ location: f({ venue: null, city: "London", region: null, country: null }, "Join us in London this fall") }));
-    const report = await ingest([makeDoc({ text: `${PAGE}\nJoin us in London this fall` })], provider);
+    const provider = new MockProvider(() => goodResponse({ start: f("2026-11-14", "not on the page at all") }));
+    const report = await ingest([makeDoc()], provider);
     expect(report.rejected).toHaveLength(1);
     const [rejected] = report.rejected;
-    expect(rejected).toMatchObject({ itemKey: makeDoc().itemKey, sourceUrl: makeDoc().sourceUrl, reason: "required fields missing or unverified: location" });
-    expect(rejected.fields.find((x) => x.field === "location")).toMatchObject({
-      status: "discarded",
-      value: { city: "London", country: null },
-      quote: "Join us in London this fall",
-      basis: "stated",
-      reason: expect.stringMatching(/country is not stated/),
-    });
-    expect(rejected.fields.find((x) => x.field === "start")).toMatchObject({ status: "kept" });
+    expect(rejected).toMatchObject({ itemKey: makeDoc().itemKey, sourceUrl: makeDoc().sourceUrl, reason: "required fields missing or unverified: start" });
+    expect(rejected.fields.find((x) => x.field === "start")).toMatchObject({ status: "discarded", quote: "not on the page at all", basis: "stated" });
+    expect(rejected.fields.find((x) => x.field === "location")).toMatchObject({ status: "kept" });
   });
 
   it("backs off on a rate limit and then succeeds", async () => {
@@ -187,6 +181,54 @@ describe("runIngest", () => {
   });
 });
 
+describe("--force", () => {
+  const unusable = () => new MockProvider(() => goodResponse({ start: f("2026-11-14", "not on the page at all") }));
+
+  it("re-extracts a page the checks rejected, even though it's unchanged", async () => {
+    await ingest([makeDoc()], unusable());
+    expect(Object.values(await store.readState())[0].outcome).toBe("failed");
+
+    const skipped = good();
+    await ingest([makeDoc()], skipped);
+    expect(skipped.calls).toHaveLength(0);
+
+    const forced = good();
+    const report = await runIngest({ adapters: [fakeAdapter([makeDoc()])], provider: forced, store, force: true, sleep: noSleep });
+    expect(forced.calls).toHaveLength(1);
+    expect(report.pending).toBe(1);
+    expect(Object.values(await store.readState())[0].outcome).toBe("pending");
+  });
+
+  it("re-extracts a page you rejected in review", async () => {
+    await ingest([makeDoc()], good());
+    const data = rejectPending({ pending: await store.readPending(), listings: [], state: await store.readState() }, 0);
+    await store.writePending(data.pending);
+    await store.writeState(data.state);
+    const forced = good();
+    await runIngest({ adapters: [fakeAdapter([makeDoc()])], provider: forced, store, force: true, sleep: noSleep });
+    expect(forced.calls).toHaveLength(1);
+  });
+
+  it("still skips unchanged pending and approved pages, and respects the cap", async () => {
+    const docs = [1, 2, 3].map((i) => makeDoc({ itemKey: `k${i}`, text: `${PAGE}\n${i}` }));
+    await ingest(docs, good());
+    const data = approvePending({ pending: await store.readPending(), listings: [], state: await store.readState() }, 0); // k1 approved, k2 and k3 pending
+    await store.writeListings(data.listings);
+    await store.writePending(data.pending);
+    await store.writeState(data.state);
+    const forced = good();
+    await runIngest({ adapters: [fakeAdapter(docs)], provider: forced, store, force: true, sleep: noSleep });
+    expect(forced.calls).toHaveLength(0);
+
+    const rejectedDocs = [4, 5, 6].map((i) => makeDoc({ itemKey: `r${i}`, text: `${PAGE}\n${i}` }));
+    await ingest(rejectedDocs, unusable());
+    const capped = good();
+    const report = await runIngest({ adapters: [fakeAdapter(rejectedDocs)], provider: capped, store, force: true, maxCalls: 2, sleep: noSleep });
+    expect(capped.calls).toHaveLength(2);
+    expect(report.deferred).toBe(1);
+  });
+});
+
 describe("duplicates across sources", () => {
   it("merges the same event from two pages into one listing with both sources", async () => {
     const a = makeDoc({ itemKey: "page:https://maple.example/2026", sourceUrl: "https://maple.example/2026" });
@@ -206,6 +248,6 @@ describe("duplicates across sources", () => {
     await ingest([makeDoc({ itemKey: "page:https://club.example/maple", sourceUrl: "https://club.example/maple" })], good());
     const [record] = await store.readPending();
     expect(record.updateOf).toBe("real-maple-hacks-2026-11-14");
-    expect(record.opportunity.id).toBe("real-maple-hacks-2026-11-14");
+    expect(record.opportunity!.id).toBe("real-maple-hacks-2026-11-14");
   });
 });

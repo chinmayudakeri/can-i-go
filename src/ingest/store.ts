@@ -4,6 +4,7 @@ import path from "node:path";
 import type { Opportunity } from "@/lib/types";
 import { parseOpportunities } from "@/lib/validate";
 import { parseFeedConfigs, type FeedConfig } from "./adapters";
+import { NEEDS_REVIEWER_TIMEZONE, validateDraft } from "./timezoneDraft";
 import type { IngestState, ItemState, PendingRecord } from "./types";
 
 /**
@@ -76,7 +77,11 @@ function validatePending(raw: unknown, file: string): PendingRecord[] {
     if (!ok) throw new StoreError(`${file}[${i}]: malformed pending record`);
   }
   // Validated one by one: two sources may propose the same event (same id) until review merges them.
-  raw.forEach((r: PendingRecord, i) => parseOpportunities([r.opportunity], `${file}[${i}]`, { real: true }));
+  raw.forEach((r: PendingRecord, i) => {
+    if (r.flag === undefined) parseOpportunities([r.opportunity], `${file}[${i}]`, { real: true });
+    else if (r.flag === NEEDS_REVIEWER_TIMEZONE && r.opportunity === null) validateDraft(r.draft, `${file}[${i}]`);
+    else throw new StoreError(`${file}[${i}]: unknown flag ${JSON.stringify((r as { flag?: unknown }).flag)}`);
+  });
   return raw as PendingRecord[];
 }
 

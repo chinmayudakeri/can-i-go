@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   checkDate,
+  checkLocation,
   checkMoney,
   checkPrograms,
   checkTeamSize,
@@ -35,8 +36,8 @@ describe("verifyField", () => {
     expect(r).toMatchObject({ status: "discarded", value: null, proposed: "2026-11-01", reason: expect.stringMatching(/verbatim/) });
   });
 
-  it("matches verbatim modulo whitespace, but is case-sensitive", () => {
-    expect(quoteAppearsIn("Applications   close\nNovember 1", PAGE)).toBe(true);
+  it("matches verbatim modulo spaces within a line, but is case-sensitive", () => {
+    expect(quoteAppearsIn("Applications   close  November 1", PAGE)).toBe(true);
     expect(quoteAppearsIn("applications close november 1", PAGE)).toBe(false);
   });
 
@@ -182,5 +183,66 @@ describe("other checks", () => {
     expect(check("https://maple.example/apply")).toEqual({ ok: true, value: "https://maple.example/apply" });
     expect(check("https://evil.example/apply").ok).toBe(false);
     expect(check("http://127.0.0.1/admin").ok).toBe(false);
+  });
+});
+
+describe("one contiguous fragment", () => {
+  const text = "Date: November 14, 2026\nTime: 9:00 AM ET\nWhere: Waterloo, ON";
+
+  it("rejects quotes stitched across lines or elements", () => {
+    expect(quoteAppearsIn("November 14, 2026 Time: 9:00 AM", text)).toBe(false);
+    expect(quoteAppearsIn("November 14, 2026\nTime: 9:00 AM", text)).toBe(false);
+    expect(quoteAppearsIn("Time: 9:00 AM ET", text)).toBe(true);
+    const r = verifyField("start", field("2026-11-14", "Date: November 14, 2026\nTime: 9:00 AM ET"), { text });
+    expect(r).toMatchObject({ status: "discarded", reason: expect.stringMatching(/spans more than one line/) });
+  });
+
+  it("takes the time from a separate, already-verified time quote", () => {
+    expect(checkDate("2026-11-14T09:00", "Date: November 14, 2026", [], "Time: 9:00 AM ET")).toEqual({
+      ok: true,
+      value: "2026-11-14T09:00",
+      note: "time from the separate time quote",
+    });
+    expect(checkDate("2026-11-14T10:00", "Date: November 14, 2026", [], "Time: 9:00 AM ET")).toMatchObject({
+      ok: true,
+      value: "2026-11-14",
+      note: expect.stringMatching(/not in the quote or the time quote/),
+    });
+  });
+});
+
+describe("checkLocation", () => {
+  const q = "Where: Fictional Hall, Waterloo, ON";
+
+  it("keeps parts that appear in the quote; country stays null unless stated", () => {
+    expect(checkLocation({ venue: "Fictional Hall", city: "Waterloo", region: "ON", country: "Canada" }, q)).toEqual({
+      ok: true,
+      value: { venue: "Fictional Hall", city: "Waterloo", region: "ON", country: null },
+      note: "country not in the quote, so set to null; Country not stated",
+    });
+    expect(checkLocation({ venue: null, city: "Toronto", region: null, country: "Canada" }, "Held in Toronto, Canada")).toMatchObject({
+      ok: true,
+      value: { city: "Toronto", country: "Canada" },
+    });
+  });
+
+  it("never derives a country from the city or province", () => {
+    const r = checkLocation({ venue: null, city: "Toronto", region: null, country: null }, "Held downtown in Toronto");
+    expect(r).toMatchObject({ ok: true, value: { country: null } });
+  });
+
+  it("accepts a venue without a city", () => {
+    expect(checkLocation({ venue: "Fictional Hall", city: null, region: null, country: null }, "Doors open at Fictional Hall")).toMatchObject({
+      ok: true,
+      value: { venue: "Fictional Hall", city: null },
+    });
+  });
+
+  it("requires the venue or the city in the quote, as whole words", () => {
+    expect(checkLocation({ venue: "Western University", city: "London", region: null, country: "Canada" }, "Participants travelling to the event outside of Western")).toEqual({
+      ok: false,
+      reason: "neither the venue nor the city appears in the quote",
+    });
+    expect(checkLocation({ venue: null, city: "Rome", region: null, country: null }, "Our Chromebook lab").ok).toBe(false);
   });
 });

@@ -14,7 +14,6 @@ import {
   checkPrograms,
   checkRequirement,
   checkTeamSize,
-  checkTimeZone,
   checkUrlInText,
   checkValueInQuote,
   quoteAppearsIn,
@@ -24,15 +23,20 @@ import {
   type FieldResult,
   type LocationValue,
 } from "../evidence";
-import { localToIso, waterlooDate } from "../time";
-import type { FieldReport } from "../types";
+import { waterlooDate } from "../time";
+import { finalizeDraft, localFull, validateDraft, type TimezoneDraft } from "../timezoneDraft";
+import { deriveTimeZone, type TimeZoneDerivation } from "../timezones";
+import { DERIVED_FROM_LOCATION, type FieldReport } from "../types";
 import { prepareText } from "./prompt";
 import { EVENT_FORMATS, EXPERIENCE_LEVELS, OPPORTUNITY_TYPES, STUDY_YEARS, SUPPORT_LEVELS } from "./schema";
 import type { ExtractionProvider } from "./types";
 
 export interface ExtractionResult {
-  /** A validated real listing, or null if required facts were missing or invalid. */
+  /** A validated real listing, or null if required facts were missing or invalid (or it needs a reviewer timezone). */
   opportunity: Opportunity | null;
+  /** Set when everything verified except the timezone: the record waits for a reviewer to type it. */
+  draft?: TimezoneDraft;
+  needsReviewerTimezone?: true;
   /** Every field's outcome, for review. */
   fields: FieldReport[];
   rejectReason: string | null;
@@ -70,6 +74,14 @@ function readField(v: unknown): ExtractedField<unknown> | undefined {
     quote: typeof v.quote === "string" ? v.quote : null,
     basis: v.basis === "stated" || v.basis === "inferred" ? v.basis : null,
   };
+}
+
+/** A date field, plus its optional separate time-of-day fragment. */
+function readDateField(v: unknown): (ExtractedField<unknown> & { timeQuote: string | null }) | undefined {
+  const f = readField(v);
+  if (!f) return undefined;
+  const timeQuote = isObject(v) && typeof v.timeQuote === "string" && v.timeQuote.trim() ? v.timeQuote : null;
+  return { ...f, timeQuote };
 }
 
 /** { openToAll, list } → "any" | list. */
@@ -111,10 +123,31 @@ export function buildOpportunity(raw: unknown, text: string, sourceUrl: string, 
     fields.push(toReport(field, r));
     return r.status === "kept" ? (r.value as T) : null;
   }
+  const timeQuotesUsed = new Map<string, string>();
   const keepEvidence = (field: EvidenceField) => {
     const r = results.get(field);
-    if (r?.status === "kept") evidence[field] = { quote: r.quote, sourceUrl, basis: r.basis };
+    if (r?.status !== "kept") return;
+    const timeQuote = timeQuotesUsed.get(field);
+    evidence[field] = { quote: r.quote, sourceUrl, basis: r.basis, ...(timeQuote ? { timeQuote } : {}) };
   };
+  const keptQuote = (field: string) => {
+    const r = results.get(field);
+    return r?.status === "kept" ? [r.quote] : [];
+  };
+  /** A date, whose time of day may come from a separate verified fragment and whose year may come from `yearFrom` fields. */
+  function verifyDate(field: "start" | "end" | "applicationDeadline", raw: ReturnType<typeof readDateField>, yearFrom: string[]): string | null {
+    const timeQuote = raw?.timeQuote ?? null;
+    const verifiedTimeQuote = timeQuote && quoteAppearsIn(timeQuote, text) ? timeQuote : null;
+    const yearContext = yearFrom.flatMap(keptQuote);
+    const local = verify<string>(field, raw, (v, q) => checkDate(v, q, yearContext, verifiedTimeQuote));
+    const report = fields[fields.length - 1];
+    if (timeQuote) {
+      report.timeQuote = timeQuote;
+      if (!verifiedTimeQuote) report.reason = [report.reason, "time quote is not verbatim in one line of the page text"].filter(Boolean).join("; ");
+    }
+    if (report.status === "kept" && report.reason === "time from the separate time quote" && verifiedTimeQuote) timeQuotesUsed.set(field, verifiedTimeQuote);
+    return local;
+  }
 
   // Descriptive fields
   const name = verify<string>("name", readField(out.name), checkValueInQuote);
@@ -122,8 +155,6 @@ export function buildOpportunity(raw: unknown, text: string, sourceUrl: string, 
   const description = verify<string>("description", readField(out.description), (_v, quote) => ({ ok: true, value: quote.trim().slice(0, 600) }));
   const type = verify<OpportunityType>("type", readField(out.type), checkOneOf(OPPORTUNITY_TYPES));
   const format = verify<EventFormat>("format", readField(out.format), checkOneOf(EVENT_FORMATS));
-  const timezone = verify<string>("timezone", readField(out.timezone), checkTimeZone);
-  const officialUrl = verify<string>("officialUrl", readField(out.officialUrl), checkUrlInText(text));
   const applyUrl = verify<string>("applyUrl", readField(out.applyUrl), checkUrlInText(text));
   const tags = verify<string[]>("tags", readField(out.tags), (v) => {
     const valid = Array.isArray(v) ? v.filter((t): t is string => (TOPICS as readonly string[]).includes(t)) : [];
@@ -131,19 +162,30 @@ export function buildOpportunity(raw: unknown, text: string, sourceUrl: string, 
   });
   const beginnerFriendly = verify<boolean>("beginnerFriendly", readField(out.beginnerFriendly), checkBoolean);
   const teamSize = verify<{ min: number; max: number }>("teamSize", readField(out.teamSize), checkTeamSize);
-  const locationValue = format === "online" ? null : verify<LocationValue>("location", readField(out.location), checkLocation(text));
+  const locationValue = format === "online" ? null : verify<LocationValue>("location", readField(out.location), checkLocation);
   if (locationValue) keepEvidence("location");
+
+  // Timezone: derived in code from the verified location via a lookup table. The model is never asked.
+  const derivation: TimeZoneDerivation =
+    format === "online"
+      ? { timezone: null, reason: "online event: no stated location to derive it from" }
+      : locationValue
+        ? deriveTimeZone(locationValue)
+        : { timezone: null, reason: "the location was not verified" };
+  const timezone = derivation.timezone;
+  fields.push(
+    derivation.timezone !== null
+      ? { field: "timezone", status: "kept", value: derivation.timezone, quote: keptQuote("location")[0] ?? null, basis: DERIVED_FROM_LOCATION, reason: derivation.via }
+      : { field: "timezone", status: "missing", value: null, quote: null, basis: null, reason: derivation.reason },
+  );
   if (teamSize) keepEvidence("teamSize");
   if (beginnerFriendly !== null) keepEvidence("beginnerFriendly");
 
-  // Dates: the year may come from the event's own start/end quotes.
-  const startRaw = readField(out.start);
-  const endRaw = readField(out.end);
-  const yearContext = [startRaw?.quote, endRaw?.quote].filter((q): q is string => !!q && quoteAppearsIn(q, text));
-  const dateCheck = (value: string, quote: string) => checkDate(value, quote, yearContext);
-  const startLocal = verify<string>("start", startRaw, dateCheck);
-  const endLocal = verify<string>("end", endRaw, dateCheck);
-  const deadlineLocal = verify<string>("applicationDeadline", readField(out.applicationDeadline), dateCheck);
+  // Dates. Start must state its own year; the end may borrow it from the verified start quote;
+  // the deadline from the verified start or end quote.
+  const startLocal = verifyDate("start", readDateField(out.start), []);
+  const endLocal = verifyDate("end", readDateField(out.end), ["start"]);
+  const deadlineLocal = verifyDate("applicationDeadline", readDateField(out.applicationDeadline), ["start", "end"]);
 
   // Eligibility
   const eligibility: EligibilityRequirements = {
@@ -173,47 +215,40 @@ export function buildOpportunity(raw: unknown, text: string, sourceUrl: string, 
     !startLocal && "start",
     !endLocal && "end",
     format && format !== "online" && !locationValue && "location",
-  ].filter(Boolean);
-  if (missing.length) return reject(`required fields missing or unverified: ${missing.join(", ")}`);
+  ].filter((m): m is string => Boolean(m));
+  // The one exception: if the timezone is the ONLY missing fact, the record waits for a reviewer to
+  // type the zone (see timezoneDraft.ts). Every other gap still rejects.
+  const onlyTimezoneMissing = missing.length === 1 && missing[0] === "timezone";
+  if (missing.length && !onlyTimezoneMissing) return reject(`required fields missing or unverified: ${missing.join(", ")}`);
 
-  // Local times → ISO with offset. Date-only start/end cover the whole day.
-  const toIso = (local: string, fallbackTime: string) =>
-    local.includes("T") ? localToIso(local.slice(0, 10), local.slice(11), timezone!) : localToIso(local, fallbackTime, timezone!);
-  const start = toIso(startLocal!, "00:00");
-  const end = toIso(endLocal!, "23:59:59");
+  // Order checks in local time: start and end share the event's zone, so no zone is needed.
+  if (localFull(endLocal!, "23:59:59") < localFull(startLocal!, "00:00:00")) return reject(`end (${endLocal}) is before start (${startLocal})`);
   keepEvidence("start");
   keepEvidence("end");
-  if (Date.parse(end) < Date.parse(start)) return reject(`end (${end}) is before start (${start})`);
-
-  let applicationDeadline: string | null = null;
-  let exactCutoffUnknown = false;
+  let keptDeadline: string | null = null;
   if (deadlineLocal) {
-    const iso = toIso(deadlineLocal, "23:59:59");
-    if (Date.parse(iso) > Date.parse(end)) {
+    if (localFull(deadlineLocal, "23:59:59") > localFull(endLocal!, "23:59:59")) {
       const report = fields.find((f) => f.field === "applicationDeadline")!;
       Object.assign(report, { status: "discarded", reason: "deadline is after the event ends" });
     } else {
-      applicationDeadline = iso;
-      exactCutoffUnknown = !deadlineLocal.includes("T");
+      keptDeadline = deadlineLocal;
       keepEvidence("applicationDeadline");
     }
   }
 
-  const opportunity: Opportunity = {
-    id: listingId({ name: name!, start, timezone: timezone! }),
+  const draft: TimezoneDraft = {
     name: name!,
     organizer: organizer ?? "Unknown",
     type: type!,
     description: description ?? "No description stated by the source.",
-    officialUrl: officialUrl ?? sourceUrl,
+    // Always the fetched page, set here rather than proposed by the model.
+    officialUrl: sourceUrl,
     applyUrl,
     format: format!,
     location: locationValue,
-    timezone: timezone!,
-    start,
-    end,
-    applicationDeadline,
-    exactCutoffUnknown,
+    startLocal: startLocal!,
+    endLocal: endLocal!,
+    deadlineLocal: keptDeadline,
     eligibility,
     teamSize,
     registrationFee,
@@ -230,10 +265,15 @@ export function buildOpportunity(raw: unknown, text: string, sourceUrl: string, 
   };
 
   try {
+    if (onlyTimezoneMissing) {
+      validateDraft(draft, "extraction");
+      return { opportunity: null, draft, needsReviewerTimezone: true, fields, rejectReason: null };
+    }
+    const opportunity = finalizeDraft(draft, timezone!);
     parseOpportunities([opportunity], "extraction", { real: true });
+    return { opportunity, fields, rejectReason: null };
   } catch (err) {
     if (err instanceof InvalidOpportunityError) return reject(err.message);
     throw err;
   }
-  return { opportunity, fields, rejectReason: null };
 }

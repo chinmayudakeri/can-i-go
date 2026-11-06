@@ -1,1 +1,89 @@
-[]
+[
+  {
+    "name": "Terminal X26",
+    "organizer": "CANtutor AI",
+    "type": "hackathon",
+    "description": "One day. Six hours to build the best web app you can ship. Then dinner, prizes and the results at Connections.",
+    "officialUrl": "https://events.cantutor.ai/hackathons",
+    "applyUrl": null,
+    "format": "in-person",
+    "location": {
+      "venue": "Toronto Metropolitan University, 245 Church St",
+      "city": "Toronto",
+      "region": null,
+      "country": null
+    },
+    "eligibility": {
+      "studentStatusRequired": null,
+      "universities": null,
+      "programs": null,
+      "years": null,
+      "experienceLevels": null,
+      "otherRequirements": null
+    },
+    "teamSize": {
+      "min": 3,
+      "max": 10
+    },
+    "registrationFee": {
+      "amount": 0,
+      "currency": "CAD"
+    },
+    "travelCostEstimate": null,
+    "lodgingSupport": null,
+    "foodSupport": null,
+    "travelSupport": null,
+    "tags": [],
+    "beginnerFriendly": true,
+    "sourceUrl": "https://events.cantutor.ai/hackathons",
+    "sourceUrls": [
+      "https://events.cantutor.ai/hackathons"
+    ],
+    "lastVerified": "2026-11-02",
+    "evidence": {
+      "location": {
+        "quote": "Location: Toronto Metropolitan University, 245 Church St, Toronto",
+        "sourceUrl": "https://events.cantutor.ai/hackathons",
+        "basis": "stated"
+      },
+      "teamSize": {
+        "quote": "3 to 10 people each",
+        "sourceUrl": "https://events.cantutor.ai/hackathons",
+        "basis": "stated"
+      },
+      "beginnerFriendly": {
+        "quote": "No hackathon experience needed",
+        "sourceUrl": "https://events.cantutor.ai/hackathons",
+        "basis": "stated"
+      },
+      "registrationFee": {
+        "quote": "No cost to register a team",
+        "sourceUrl": "https://events.cantutor.ai/hackathons",
+        "basis": "stated"
+      },
+      "start": {
+        "quote": "Saturday, November 28, 2026/TMU, 245 Church St, Toronto",
+        "sourceUrl": "https://events.cantutor.ai/hackathons",
+        "basis": "stated",
+        "timeQuote": "10:00 a.m. to 4:00 p.m."
+      },
+      "end": {
+        "quote": "Saturday, November 28, 2026/TMU, 245 Church St, Toronto",
+        "sourceUrl": "https://events.cantutor.ai/hackathons",
+        "basis": "stated",
+        "timeQuote": "10:00 a.m. to 4:00 p.m."
+      }
+    },
+    "id": "real-terminal-x26-2026-11-28",
+    "timezone": "America/Toronto",
+    "start": "2026-11-28T10:00:00-05:00",
+    "end": "2026-11-28T16:00:00-05:00",
+    "applicationDeadline": null,
+    "exactCutoffUnknown": false,
+    "timezoneConfirmation": {
+      "basis": "confirmed by reviewer",
+      "note": "https://www.torontomu.ca/",
+      "confirmedOn": "2026-11-06"
+    }
+  }
+]

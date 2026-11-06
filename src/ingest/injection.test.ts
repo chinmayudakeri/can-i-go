@@ -63,7 +63,7 @@ describe("prompt injection in page text", () => {
     // Nothing published: pending only.
     expect(await store.readListings()).toEqual([]);
     const [record] = await store.readPending();
-    const o = record.opportunity;
+    const o = record.opportunity!;
 
     // Injected claims are discarded by deterministic checks.
     expect(o.eligibility.universities).toBeNull();
@@ -116,7 +116,7 @@ describe("prompt injection in page text", () => {
     const provider = new MockProvider(() => goodResponse({ registrationFee: f({ amount: 500, currency: "CAD" }, "Registration fee: CAD 500 per hacker.") }));
     await runIngest({ adapters: [fakeAdapter([makeDoc({ text: page })])], provider, store });
     const [record] = await store.readPending();
-    expect(record.opportunity.registrationFee).toEqual({ amount: 500, currency: "CAD" });
+    expect(record.opportunity!.registrationFee).toEqual({ amount: 500, currency: "CAD" });
     expect(await store.readListings()).toEqual([]);
   });
 });

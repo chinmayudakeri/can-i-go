@@ -79,3 +79,15 @@ describe("parseOpportunities: real listings", () => {
     expect(parseOne(opp, true)).toHaveLength(1);
   });
 });
+
+describe("parseOpportunities: location", () => {
+  it("accepts a venue-only location and a missing country", () => {
+    const venueOnly = makeOpportunity({ location: { venue: "Fictional Hall", city: null, region: null, country: null } });
+    expect(parseOne(venueOnly)).toHaveLength(1);
+  });
+
+  it("needs a venue or a city, and text-or-null parts", () => {
+    expect(() => parseOne(makeOpportunity({ location: { venue: null, city: null, region: "ON", country: "Canada" } }))).toThrow(/venue or a city/);
+    expect(() => parseOne(makeOpportunity({ location: { venue: null, city: "Waterloo", region: null, country: 3 as never } }))).toThrow(/location\.country/);
+  });
+});

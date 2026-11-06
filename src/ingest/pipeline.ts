@@ -2,12 +2,13 @@ import type { Opportunity } from "@/lib/types";
 import { InvalidOpportunityError, parseOpportunities } from "@/lib/validate";
 import type { SourceAdapter } from "./adapters";
 import { BudgetExhaustedError, CallBudget, DEFAULT_MAX_CALLS } from "./budget";
-import { dedupeKey } from "./dedupe";
+import { dedupeKey, dedupeKeyFromDate } from "./dedupe";
 import { extractOpportunity } from "./extract/extractOpportunity";
 import { ProviderError, type ExtractionProvider } from "./extract/types";
 import { hashText } from "./hash";
 import type { Store } from "./store";
 import { waterlooDate } from "./time";
+import { NEEDS_REVIEWER_TIMEZONE } from "./timezoneDraft";
 import type { FieldReport, PendingRecord } from "./types";
 
 export interface IngestOptions {
@@ -16,6 +17,11 @@ export interface IngestOptions {
   store: Store;
   maxCalls?: number;
   dryRun?: boolean;
+  /**
+   * Re-extract pages that state.json recorded as rejected (by the checks, or by you in review),
+   * even if their text is unchanged. Pending and approved pages are still skipped. Calls stay capped.
+   */
+  force?: boolean;
   sleep?: (ms: number) => Promise<void>;
   log?: (message: string) => void;
 }
@@ -28,6 +34,8 @@ export interface IngestReport {
   reverified: number;
   /** New records added to pending.json. */
   pending: number;
+  /** Of those, records waiting for the reviewer to type a timezone. */
+  needsReviewerTimezone: number;
   /** Extracted but rejected (missing required facts or invalid), with every field's outcome for --show-rejected. */
   rejected: { itemKey: string; sourceUrl: string; reason: string; fields: FieldReport[] }[];
   /** Adapters or documents that failed (network, blocked by policy/robots, provider error). Retried next run. */
@@ -46,7 +54,7 @@ export interface IngestReport {
  * already-approved pages; new data always waits for `npm run review`.
  */
 export async function runIngest(options: IngestOptions): Promise<IngestReport> {
-  const { adapters, provider, store, dryRun = false, sleep, log = () => {} } = options;
+  const { adapters, provider, store, dryRun = false, force = false, sleep, log = () => {} } = options;
   const budget = new CallBudget(options.maxCalls ?? DEFAULT_MAX_CALLS);
   const [state, pendingList, listings] = await Promise.all([store.readState(), store.readPending(), store.readListings()]);
   let pending = pendingList;
@@ -58,6 +66,7 @@ export async function runIngest(options: IngestOptions): Promise<IngestReport> {
     skippedUnchanged: 0,
     reverified: 0,
     pending: 0,
+    needsReviewerTimezone: 0,
     rejected: [],
     failed: [],
     deferred: 0,
@@ -82,7 +91,9 @@ export async function runIngest(options: IngestOptions): Promise<IngestReport> {
       const textHash = hashText(doc.text);
       const prev = state[doc.itemKey];
 
-      if (prev && prev.textHash === textHash) {
+      const forced = force && (prev?.outcome === "failed" || prev?.outcome === "rejected");
+      if (forced) log(`↻ ${doc.itemKey}: re-extracting (previously ${prev!.outcome === "failed" ? "rejected by the checks" : "rejected in review"})`);
+      if (prev && prev.textHash === textHash && !forced) {
         report.skippedUnchanged++;
         if (prev.outcome === "approved" && prev.listingId) {
           const verified = waterlooDate(doc.fetchedAt);
@@ -121,6 +132,28 @@ export async function runIngest(options: IngestOptions): Promise<IngestReport> {
           report.stoppedEarly = err.message;
           break run;
         }
+        continue;
+      }
+
+      if (result.needsReviewerTimezone && result.draft) {
+        const draft = result.draft;
+        const key = dedupeKeyFromDate(draft.name, draft.startLocal.slice(0, 10));
+        const match = nextListings.find((l) => dedupeKey(l) === key);
+        const record: PendingRecord = {
+          opportunity: null,
+          flag: NEEDS_REVIEWER_TIMEZONE,
+          draft,
+          itemKey: doc.itemKey,
+          textHash,
+          fetchedAt: doc.fetchedAt,
+          fields: result.fields,
+          updateOf: match?.id ?? null,
+        };
+        pending = [...pending.filter((p) => p.itemKey !== doc.itemKey), record];
+        state[doc.itemKey] = { textHash, lastFetched: doc.fetchedAt, outcome: "pending", ...(prev?.listingId ? { listingId: prev.listingId } : {}) };
+        report.pending++;
+        report.needsReviewerTimezone++;
+        log(`+ ${draft.name}: pending review, ${NEEDS_REVIEWER_TIMEZONE}${match ? ` (update to ${match.id})` : ""}`);
         continue;
       }
 

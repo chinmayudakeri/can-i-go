@@ -122,8 +122,11 @@ export function parseOpportunities(raw: unknown, sourceName: string, options: Pa
     if (o.format !== "online" && !o.location) fail("in-person/hybrid events need a location");
     if (o.location !== null && o.location !== undefined) {
       const loc = o.location as Record<string, unknown>;
-      if (typeof loc !== "object" || typeof loc.city !== "string" || typeof loc.country !== "string") {
-        fail('"location" needs a city and country');
+      const text = (v: unknown) => typeof v === "string" && v.trim() !== "";
+      const nullableText = (v: unknown) => v === null || text(v);
+      if (typeof loc !== "object" || !(text(loc.venue) || text(loc.city))) fail('"location" needs a venue or a city');
+      for (const key of ["venue", "city", "region", "country"]) {
+        if (!nullableText(loc[key])) fail(`"location.${key}" must be text or null`);
       }
     }
 
@@ -144,6 +147,11 @@ export function parseOpportunities(raw: unknown, sourceName: string, options: Pa
       if (Date.parse(o.applicationDeadline as string) > Date.parse(o.end as string)) fail("deadline is after the event ends");
     }
     if (typeof o.exactCutoffUnknown !== "boolean") fail('"exactCutoffUnknown" must be true or false');
+    if (o.timezoneConfirmation !== undefined) {
+      const c = o.timezoneConfirmation as Record<string, unknown> | null;
+      const ok = !!c && c.basis === "confirmed by reviewer" && typeof c.note === "string" && c.note.trim().length > 0 && isValidIsoDate(c.confirmedOn);
+      if (!ok) fail('"timezoneConfirmation" needs basis "confirmed by reviewer", a note and a YYYY-MM-DD date');
+    }
 
     if (!o.eligibility || typeof o.eligibility !== "object") fail('missing "eligibility"');
     const eligibility = o.eligibility as Record<string, unknown>;

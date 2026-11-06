@@ -6,7 +6,8 @@ import { PAGE, PAGE_URL, goodResponse } from "./testFixtures";
 import type { PendingRecord } from "./types";
 
 const extracted = buildOpportunity(goodResponse(), PAGE, PAGE_URL, "2026-10-18T16:00:00.000Z");
-const record = (overrides: Partial<PendingRecord> = {}): PendingRecord => ({
+type ReadyRecord = Extract<PendingRecord, { opportunity: object }>;
+const record = (overrides: Partial<ReadyRecord> = {}): PendingRecord => ({
   opportunity: extracted.opportunity!,
   itemKey: `page:${PAGE_URL}`,
   textHash: hashText(PAGE),
@@ -88,7 +89,7 @@ describe("formatRejected (--show-rejected)", () => {
     const rows = out.split("\n").filter((l) => l.includes(" │ "));
     const left = rows.map((l) => l.split(" │ ")[0].trim()).join(" ");
     const right = rows.map((l) => l.split(" │ ")[1].trim()).join(" ");
-    expect(left).toContain('✗ location: venue: null, city: "London", region: null, country: null');
+    expect(left).toContain('✗ location: venue: null, city: "London", region: null, Country not stated');
     expect(right).toContain("“Join us in London” → country is not stated and can't be derived from a stated province or state");
     expect(out).toContain("Not stated (null): registrationFee");
   });
@@ -108,5 +109,27 @@ describe("formatRejected (--show-rejected)", () => {
   it("strips terminal escape sequences from page-derived text", () => {
     const out = formatRejected([{ ...rejected, reason: "bad \u001b[2Jreason" }]);
     expect(out).not.toContain("\u001b");
+  });
+});
+
+describe("review display of derived and time-split fields", () => {
+  it("labels the derived timezone and shows a separate time quote", () => {
+    const table = formatFieldTable(
+      [
+        { field: "start", status: "kept", value: "2027-01-09T10:00", quote: "Saturday, January 9, 2027", timeQuote: "Doors open at 10:00 AM", basis: "stated", reason: "time from the separate time quote" },
+        { field: "timezone", status: "kept", value: "America/Toronto", quote: "Where: Fictional Hall, Waterloo, ON", basis: "derived from stated location", reason: "Waterloo, ON → America/Toronto (city table)" },
+        { field: "location", status: "kept", value: { venue: "Fictional Hall", city: "Waterloo", region: "ON", country: null }, quote: "Where: Fictional Hall, Waterloo, ON", basis: "stated" },
+      ],
+      140,
+    );
+    expect(table).toContain("timezone [DERIVED FROM STATED LOCATION]: America/Toronto");
+    expect(table).toContain("time: “Doors open at 10:00 AM”");
+    const left = table.split("\n").filter((l) => l.includes(" │ ")).map((l) => l.split(" │ ")[0].trim()).join(" ");
+    expect(left).toContain('location: venue: "Fictional Hall", city: "Waterloo", region: "ON", Country not stated');
+  });
+
+  it("explains why a required field is missing", () => {
+    const table = formatFieldTable([{ field: "timezone", status: "missing", value: null, quote: null, basis: null, reason: "online event: no stated location to derive it from" }]);
+    expect(table).toContain("Not stated (null): timezone (online event: no stated location to derive it from)");
   });
 });

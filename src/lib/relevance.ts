@@ -65,6 +65,8 @@ export function explainRelevance(
     const city = opp.location.city;
     if (!start) {
       reasons.push({ kind: "travel", tone: "neutral", text: "Add a starting location to compare travel" });
+    } else if (!city) {
+      reasons.push({ kind: "travel", tone: "neutral", text: "City not stated, so travel can't be compared" });
     } else if (start.includes(normalize(city))) {
       reasons.push({ kind: "travel", tone: "positive", text: `In ${city}, where you're starting from` });
     } else {

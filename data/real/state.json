@@ -8,5 +8,11 @@
     "textHash": "89ae3bc96b9532123577e7f0e1bcc367fe751c942b96c8d0c041de05cb7c88f1",
     "lastFetched": "2026-11-02T18:46:54.715Z",
     "outcome": "failed"
+  },
+  "page:https://events.cantutor.ai/hackathons": {
+    "textHash": "8bbbf67eacbb0bc9c2f1eeb12b65ac2162e2fab96d012aedce89d54d8f1e72c7",
+    "lastFetched": "2026-11-02T19:14:27.133Z",
+    "outcome": "approved",
+    "listingId": "real-terminal-x26-2026-11-28"
   }
 }

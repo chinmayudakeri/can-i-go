@@ -52,7 +52,8 @@ export const DECISION_FIELDS = [
   "eligibility.otherRequirements",
 ] as const;
 
-export const INFERABLE_FIELDS = ["type", "format", "timezone", "tags", "beginnerFriendly"] as const;
+/** Timezone is not here: it's derived in code from the verified location (see timezones.ts), never taken from the model. */
+export const INFERABLE_FIELDS = ["type", "format", "tags", "beginnerFriendly"] as const;
 
 export function canBeInferred(field: string): boolean {
   return (INFERABLE_FIELDS as readonly string[]).includes(field);
@@ -63,9 +64,22 @@ export function normalizeForMatch(s: string): string {
   return s.normalize("NFC").replace(/\s+/g, " ").trim();
 }
 
+/** True if the quote spans a line break, i.e. it was stitched from separate lines or elements. */
+export function quoteSpansLines(quote: string): boolean {
+  return /[\r\n]/.test(quote.trim());
+}
+
+/**
+ * The quote must be ONE contiguous fragment: verbatim (spaces collapsed,
+ * case-sensitive) within a single line of the page text. Page text puts
+ * separate HTML block elements on separate lines, so a quote stitched across
+ * elements doesn't match.
+ */
 export function quoteAppearsIn(quote: string, text: string): boolean {
+  if (quoteSpansLines(quote)) return false;
   const q = normalizeForMatch(quote);
-  return q.length >= MIN_QUOTE_LENGTH && normalizeForMatch(text).includes(q);
+  if (q.length < MIN_QUOTE_LENGTH) return false;
+  return text.split(/\r\n|\r|\n/).some((line) => normalizeForMatch(line).includes(q));
 }
 
 export interface VerifyContext<T> {
@@ -89,7 +103,8 @@ export function verifyField<T>(field: string, extracted: ExtractedField<T> | nul
 
   if (typeof quote !== "string" || !quote.trim()) return discard("no supporting quote");
   if (normalizeForMatch(quote).length < MIN_QUOTE_LENGTH) return discard(`quote is shorter than ${MIN_QUOTE_LENGTH} characters`);
-  if (!quoteAppearsIn(quote, ctx.text)) return discard("quote does not appear verbatim in the page text");
+  if (quoteSpansLines(quote)) return discard("quote spans more than one line; it must be one contiguous fragment");
+  if (!quoteAppearsIn(quote, ctx.text)) return discard("quote does not appear verbatim in one line of the page text");
   if (basis !== "stated" && basis !== "inferred") return discard('basis must be "stated" or "inferred"');
   if (basis === "inferred" && !canBeInferred(field)) return discard("inferred, but this field must be stated by the source");
 
@@ -145,7 +160,7 @@ function quoteHasUnambiguousNumericDate(quote: string, month: number, day: numbe
   return false;
 }
 
-function quoteHasTime(quote: string, hour: number, minute: number): boolean {
+export function quoteHasTime(quote: string, hour: number, minute: number): boolean {
   if (minute === 0 && hour === 12 && /\bnoon\b/i.test(quote)) return true;
   if (((hour === 0 && minute === 0) || (hour === 23 && minute === 59)) && /\bmidnight\b/i.test(quote)) return true;
   if (new RegExp(`(?<![\\d:])0?${hour}[:h]${pad(minute)}(?!\\d)`, "i").test(quote)) return true;
@@ -159,10 +174,12 @@ function quoteHasTime(quote: string, hour: number, minute: number): boolean {
  * Checks a local date or date-time ("2026-11-14" or "2026-11-14T09:00")
  * against its quote. The quote must name the day and month; the year must be
  * in the quote or, if the quote has no year at all, in one of the
- * `yearContext` quotes (the event's own start/end quotes). A time the quote
- * doesn't state is dropped, keeping only the date.
+ * `yearContext` quotes (already-verified date quotes the caller allows, e.g.
+ * the start quote for the end date). The time may come from the quote or
+ * from a separate `timeQuote` that the caller has already verified verbatim.
+ * A time neither states is dropped, keeping only the date.
  */
-export function checkDate(value: string, quote: string, yearContext: string[] = []): Check<string> {
+export function checkDate(value: string, quote: string, yearContext: string[] = [], timeQuote: string | null = null): Check<string> {
   const m = LOCAL_DATE_TIME.exec(value);
   if (!m) return { ok: false, reason: `"${value}" is not a date (expected YYYY-MM-DD or YYYY-MM-DDTHH:mm)` };
   const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
@@ -183,7 +200,8 @@ export function checkDate(value: string, quote: string, yearContext: string[] = 
   if (m[4] === undefined) return { ok: true, value: date };
   const [hour, minute] = [Number(m[4]), Number(m[5])];
   if (quoteHasTime(quote, hour, minute)) return { ok: true, value: `${date}T${m[4]}:${m[5]}` };
-  return { ok: true, value: date, note: `time ${m[4]}:${m[5]} is not in the quote; kept the date only` };
+  if (timeQuote && quoteHasTime(timeQuote, hour, minute)) return { ok: true, value: `${date}T${m[4]}:${m[5]}`, note: "time from the separate time quote" };
+  return { ok: true, value: date, note: `time ${m[4]}:${m[5]} is not in the quote${timeQuote ? " or the time quote" : ""}; kept the date only` };
 }
 
 // ---------------------------------------------------------------------------
@@ -314,56 +332,41 @@ export function checkUrlInText(text: string) {
 export function checkOtherRequirements(text: string) {
   return (value: string[]): Check<string[]> => {
     if (!Array.isArray(value)) return { ok: false, reason: "must be a list" };
-    const kept = value.filter((v) => typeof v === "string" && normalizeForMatch(v).length > 0 && normalizeForMatch(text).includes(normalizeForMatch(v)));
+    const lines = text.split(/\r\n|\r|\n/).map(normalizeForMatch);
+    const kept = value.filter(
+      (v) => typeof v === "string" && !quoteSpansLines(v) && normalizeForMatch(v).length > 0 && lines.some((l) => l.includes(normalizeForMatch(v))),
+    );
     if (!kept.length) return { ok: false, reason: "none of the requirements appear verbatim in the page text" };
     const dropped = value.length - kept.length;
     return { ok: true, value: kept.map(normalizeForMatch), ...(dropped ? { note: `${dropped} paraphrased requirement(s) dropped` } : {}) };
   };
 }
 
-const PROVINCES = ["AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT"];
-const PROVINCE_NAMES = [
-  "Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador", "Nova Scotia",
-  "Northwest Territories", "Nunavut", "Ontario", "Prince Edward Island", "Quebec", "Québec", "Saskatchewan", "Yukon",
-];
-const US_STATES = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD",
-  "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
-];
-
-const inText = (needle: string, text: string) =>
-  new RegExp(`(?<![\\p{L}\\d])${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\d])`, "iu").test(text);
+const inQuote = (needle: string, quote: string) =>
+  new RegExp(`(?<![\\p{L}\\d])${normalizeForMatch(needle).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\d])`, "iu").test(normalizeForMatch(quote));
 
 export interface LocationValue {
   venue: string | null;
-  city: string;
+  city: string | null;
   region: string | null;
-  country: string;
+  country: string | null;
 }
 
 /**
- * The city must be in the quote. Venue and region are kept only if they
- * appear in the page. The country must appear in the page, or follow from a
- * stated Canadian province or US state code (a fixed table, not a guess).
+ * Each part is kept only if it appears in the location's own quote, and the
+ * venue or the city must be among them. Country is null unless the quote
+ * states it; it is never derived from the city or province.
  */
-export function checkLocation(text: string) {
-  return (value: Partial<LocationValue>, quote: string): Check<LocationValue> => {
-    if (!value || typeof value !== "object" || typeof value.city !== "string" || !value.city.trim()) {
-      return { ok: false, reason: "location needs a city" };
-    }
-    const city = checkValueInQuote(value.city, quote);
-    if (!city.ok) return city;
-    const venue = typeof value.venue === "string" && value.venue.trim() && inText(normalizeForMatch(value.venue), text) ? normalizeForMatch(value.venue) : null;
-    const region = typeof value.region === "string" && value.region.trim() && inText(value.region.trim(), text) ? value.region.trim() : null;
-    let country = typeof value.country === "string" && value.country.trim() && inText(value.country.trim(), text) ? value.country.trim() : null;
-    let note: string | undefined;
-    if (!country && region) {
-      if (PROVINCES.includes(region.toUpperCase()) || PROVINCE_NAMES.some((n) => n.toLowerCase() === region.toLowerCase())) country = "Canada";
-      else if (US_STATES.includes(region.toUpperCase())) country = "United States";
-      if (country) note = `country derived from region "${region}"`;
-    }
-    if (!country) return { ok: false, reason: "country is not stated and can't be derived from a stated province or state" };
-    return { ok: true, value: { venue, city: city.value, region, country }, ...(note ? { note } : {}) };
-  };
+export function checkLocation(value: Partial<LocationValue>, quote: string): Check<LocationValue> {
+  if (!value || typeof value !== "object") return { ok: false, reason: "location must be an object" };
+  const part = (v: unknown) => (typeof v === "string" && v.trim() && inQuote(v, quote) ? normalizeForMatch(v) : null);
+  const proposed = (v: unknown) => typeof v === "string" && v.trim() !== "";
+  const result: LocationValue = { venue: part(value.venue), city: part(value.city), region: part(value.region), country: part(value.country) };
+  if (!result.venue && !result.city) return { ok: false, reason: "neither the venue nor the city appears in the quote" };
+  const dropped = (["venue", "city", "region", "country"] as const).filter((k) => proposed(value[k]) && !result[k]);
+  const notes = [
+    dropped.length ? `${dropped.join(", ")} not in the quote, so set to null` : "",
+    result.country ? "" : "Country not stated",
+  ].filter(Boolean);
+  return { ok: true, value: result, ...(notes.length ? { note: notes.join("; ") } : {}) };
 }

@@ -2,7 +2,8 @@
  * npm run ingest                      → every feed in data/real/feeds.json
  * npm run ingest -- --url <link>      → one event page you chose
  * Options: --max-calls N (default 20), --dry-run (write nothing),
- *          --show-rejected (print every field of rejected records with its quote and why it was kept or discarded)
+ *          --show-rejected (print every field of rejected records with its quote and why it was kept or discarded),
+ *          --force (re-extract pages state.json recorded as rejected, even if unchanged; still capped)
  *
  * Results go to data/real/pending.json for `npm run review`. Nothing is published without your approval.
  */
@@ -30,11 +31,12 @@ async function main() {
       "max-calls": { type: "string" },
       "dry-run": { type: "boolean", default: false },
       "show-rejected": { type: "boolean", default: false },
+      force: { type: "boolean", default: false },
       help: { type: "boolean", default: false },
     },
   });
   if (values.help) {
-    console.log("Usage: npm run ingest [-- --url <link>] [--max-calls N] [--dry-run] [--show-rejected]");
+    console.log("Usage: npm run ingest [-- --url <link>] [--max-calls N] [--dry-run] [--show-rejected] [--force]");
     return;
   }
 
@@ -66,12 +68,12 @@ async function main() {
   });
 
   console.log(`Extracting with ${provider.name}, at most ${maxCalls} call(s)${values["dry-run"] ? " (dry run)" : ""}…`);
-  const report = await runIngest({ adapters, provider, store, maxCalls, dryRun: values["dry-run"], log: (m) => console.log(`  ${m}`) });
+  const report = await runIngest({ adapters, provider, store, maxCalls, dryRun: values["dry-run"], force: values.force, log: (m) => console.log(`  ${m}`) });
 
   console.log(`
 Documents: ${report.documents}
 Unchanged (no call): ${report.skippedUnchanged}${report.reverified ? `, ${report.reverified} listing(s) re-verified` : ""}
-New pending: ${report.pending}
+New pending: ${report.pending}${report.needsReviewerTimezone ? ` (${report.needsReviewerTimezone} need a reviewer timezone)` : ""}
 Rejected: ${report.rejected.length}
 Failed (retried next run): ${report.failed.length}
 Calls used: ${report.callsUsed}/${report.callCap}${report.deferred ? `; ${report.deferred} document(s) left for the next run` : ""}`);

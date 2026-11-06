@@ -6,7 +6,17 @@
  */
 import { createInterface } from "node:readline/promises";
 import { mergeOpportunities } from "@/ingest/dedupe";
-import { approvePending, formatFieldTable, rejectPending, terminalSafe, type ReviewData } from "@/ingest/review";
+import {
+  approvePending,
+  describeListingTimezone,
+  describeTimezoneStatus,
+  formatFieldTable,
+  rejectPending,
+  terminalSafe,
+  type ReviewData,
+  type ReviewerTimezone,
+} from "@/ingest/review";
+import { NEEDS_REVIEWER_TIMEZONE, ReviewInputError, draftId, validateReviewerNote, validateReviewerTimezone } from "@/ingest/timezoneDraft";
 import { createStore } from "@/ingest/store";
 
 async function main() {
@@ -30,32 +40,53 @@ async function main() {
   const width = Math.min(process.stdout.columns || 100, 140);
   let index = 0;
   const total = data.pending.length;
-  for (let seen = 1; index < data.pending.length; seen++) {
+  while (index < data.pending.length) {
+    const position = total - data.pending.length + index + 1;
     const record = data.pending[index];
-    const o = record.opportunity;
+    const flagged = record.flag === NEEDS_REVIEWER_TIMEZONE;
+    const name = flagged ? record.draft.name : record.opportunity.name;
+    const id = flagged ? draftId(record.draft) : record.opportunity.id;
+    const sourceUrl = flagged ? record.draft.sourceUrl : record.opportunity.sourceUrl;
     const existing = record.updateOf ? data.listings.find((l) => l.id === record.updateOf) : undefined;
     console.log(`\n${"═".repeat(width)}`);
-    console.log(terminalSafe(`[${seen}/${total}] ${o.name}  (${o.id})`));
+    console.log(terminalSafe(`[${position}/${total}] ${name}  (${id})`));
     console.log(terminalSafe(existing ? `Update to existing listing ${existing.id}` : "New listing"));
-    console.log(terminalSafe(`Source: ${o.sourceUrl}`));
-    console.log(terminalSafe(`Fetched: ${record.fetchedAt}   Dates: ${o.start} → ${o.end}   Deadline: ${o.applicationDeadline ?? "Unknown"}`));
-    if (existing) {
-      const { conflicts } = mergeOpportunities(existing, o);
-      if (conflicts.length) console.log(terminalSafe(`Changes vs current listing: ${conflicts.join(", ")}`));
+    console.log(terminalSafe(`Source: ${sourceUrl}`));
+    if (flagged) {
+      console.log(terminalSafe(`Fetched: ${record.fetchedAt}`));
+    } else {
+      const o = record.opportunity;
+      console.log(terminalSafe(`Fetched: ${record.fetchedAt}   Dates: ${o.start} → ${o.end}   Deadline: ${o.applicationDeadline ?? "Unknown"}`));
+      if (existing) {
+        const { conflicts } = mergeOpportunities(existing, o);
+        if (conflicts.length) console.log(terminalSafe(`Changes vs current listing: ${conflicts.join(", ")}`));
+      }
     }
+    console.log(describeTimezoneStatus(record));
+    if (existing?.timezoneConfirmation) console.log(`Current listing: ${describeListingTimezone(existing)} (not reused; confirm again)`);
     console.log(`${"─".repeat(width)}\n${formatFieldTable(record.fields, width)}`);
 
     const answer = (await rl.question("\n[a]pprove  [r]eject  [s]kip  [q]uit > ")).trim().toLowerCase();
     if (answer === "q") break;
     if (answer === "a") {
       try {
-        const result = approvePending(data, index);
+        let reviewerTimezone: ReviewerTimezone | undefined;
+        if (flagged) {
+          // Typed by the reviewer only. Nothing is suggested or pre-filled.
+          const timezone = validateReviewerTimezone(await rl.question("IANA timezone you verified (e.g. America/Toronto): "));
+          const note = validateReviewerNote(await rl.question("How did you verify it? (short note or URL, e.g. the venue's official site): "));
+          reviewerTimezone = { timezone, note };
+        }
+        const result = approvePending(data, index, reviewerTimezone);
         data = result;
         await save();
         console.log(`✓ ${result.action === "added" ? "Added" : "Merged into"} ${result.id}${result.conflicts.length ? ` (changed: ${result.conflicts.join(", ")})` : ""}`);
+        const saved = data.listings.find((l) => l.id === result.id);
+        if (saved?.timezoneConfirmation) console.log(`  ${describeListingTimezone(saved)}`);
       } catch (err) {
         console.log(`✗ Can't approve: ${(err as Error).message}`);
-        index++;
+        // Bad timezone or note: stay on this record so you can try again.
+        if (!(err instanceof ReviewInputError)) index++;
       }
     } else if (answer === "r") {
       data = rejectPending(data, index);

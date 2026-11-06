@@ -32,11 +32,9 @@ export function goodResponse(overrides: Record<string, unknown> = {}, eligibilit
     type: f("hackathon", "24-hour student hackathon"),
     format: f("in-person", "Where: Fictional Hall, Waterloo, ON", "inferred"),
     location: f({ venue: "Fictional Hall", city: "Waterloo", region: "ON", country: "Canada" }, "Where: Fictional Hall, Waterloo, ON"),
-    timezone: f("America/Toronto", "starting at 9:00 AM ET", "inferred"),
     start: f("2026-11-14T09:00", "When: November 14–15, 2026, starting at 9:00 AM ET"),
     end: f("2026-11-15T17:00", "November 14–15, 2026, starting at 9:00 AM ET and ending at 5:00 PM ET."),
     applicationDeadline: f("2026-11-01T23:59", "Applications close November 1 at 11:59 PM ET."),
-    officialUrl: NONE,
     applyUrl: f("https://maple.example/apply", "- Apply: https://maple.example/apply"),
     eligibility: {
       studentStatusRequired: f(true, "Open to all university students."),

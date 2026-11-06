@@ -629,6 +629,10 @@ main {
   padding-left: 1.2rem;
 }
 
+.timezone-confirmed strong {
+  color: var(--warn);
+}
+
 .source-footer .demo-note {
   color: var(--warn);
   font-weight: 600;

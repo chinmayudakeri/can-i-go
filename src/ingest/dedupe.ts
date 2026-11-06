@@ -25,13 +25,22 @@ export function localStartDate(opp: Pick<Opportunity, "start" | "timezone">): st
 }
 
 export function dedupeKey(opp: Pick<Opportunity, "name" | "start" | "timezone">): string {
-  return `${normalizeName(opp.name)}|${localStartDate(opp)}`;
+  return dedupeKeyFromDate(opp.name, localStartDate(opp));
+}
+
+/** Same key from a name and a local start date (YYYY-MM-DD), for records whose timezone isn't known yet. */
+export function dedupeKeyFromDate(name: string, localDate: string): string {
+  return `${normalizeName(name)}|${localDate}`;
 }
 
 /** Stable id for a real listing; the "real-" prefix can never collide with "demo-" ids. */
 export function listingId(opp: Pick<Opportunity, "name" | "start" | "timezone">): string {
-  const slug = normalizeName(opp.name).replace(/ /g, "-").slice(0, 60).replace(/-+$/, "") || "event";
-  return `real-${slug}-${localStartDate(opp)}`;
+  return listingIdFromDate(opp.name, localStartDate(opp));
+}
+
+export function listingIdFromDate(name: string, localDate: string): string {
+  const slug = normalizeName(name).replace(/ /g, "-").slice(0, 60).replace(/-+$/, "") || "event";
+  return `real-${slug}-${localDate}`;
 }
 
 export function allSourceUrls(opp: Opportunity): string[] {

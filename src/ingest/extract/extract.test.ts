@@ -19,7 +19,8 @@ describe("buildOpportunity", () => {
       organizer: "Maple Student Tech Club",
       type: "hackathon",
       format: "in-person",
-      location: { venue: "Fictional Hall", city: "Waterloo", region: "ON", country: "Canada" },
+      // Country isn't in the location quote, so it stays null (never derived).
+      location: { venue: "Fictional Hall", city: "Waterloo", region: "ON", country: null },
       timezone: "America/Toronto",
       start: "2026-11-14T09:00:00-05:00",
       end: "2026-11-15T17:00:00-05:00",
@@ -108,10 +109,12 @@ describe("buildOpportunity", () => {
     expect(build(JSON.stringify(goodResponse())).opportunity).not.toBeNull();
   });
 
-  it("allows online events without a location", () => {
+  it("flags online events for a reviewer timezone: with no stated location there's none to derive", () => {
     const text = `${PAGE}\nThis event is fully online.`;
     const r = build(goodResponse({ format: f("online", "This event is fully online."), location: f(null, null, null) }), text);
-    expect(r.opportunity).toMatchObject({ format: "online", location: null });
+    expect(r).toMatchObject({ opportunity: null, needsReviewerTimezone: true, rejectReason: null });
+    expect(r.draft).toMatchObject({ format: "online", location: null, startLocal: "2026-11-14T09:00", endLocal: "2026-11-15T17:00" });
+    expect(report(r, "timezone")).toMatchObject({ status: "missing", reason: "online event: no stated location to derive it from" });
   });
 });
 
@@ -136,5 +139,102 @@ describe("prompt", () => {
 
   it("caps the text length", () => {
     expect(prepareText("x".repeat(100_000))).toHaveLength(40_000);
+  });
+});
+
+describe("buildOpportunity: quote fragments and dates", () => {
+  // Date and time on separate lines (separate elements on the page), as on many event sites.
+  const SPLIT = `${PAGE}\nSaturday, January 9, 2027\nDoors open at 10:00 AM\nSunday, January 10\nClosing ceremony at 4:00 PM`;
+  const split = (start: object, end: object) => build(goodResponse({ start, end, applicationDeadline: f(null, null, null) }), SPLIT);
+
+  it("verifies the date and the time of day from their own fragments, and stores both quotes", () => {
+    const r = split(
+      { ...f("2027-01-09T10:00", "Saturday, January 9, 2027"), timeQuote: "Doors open at 10:00 AM" },
+      { ...f("2027-01-10T16:00", "Sunday, January 10"), timeQuote: "Closing ceremony at 4:00 PM" },
+    );
+    expect(r.rejectReason).toBeNull();
+    expect(r.opportunity).toMatchObject({ start: "2027-01-09T10:00:00-05:00", end: "2027-01-10T16:00:00-05:00" });
+    expect(r.opportunity!.evidence.start).toEqual({ quote: "Saturday, January 9, 2027", timeQuote: "Doors open at 10:00 AM", sourceUrl: PAGE_URL, basis: "stated" });
+    expect(report(r, "start")).toMatchObject({ status: "kept", timeQuote: "Doors open at 10:00 AM", reason: "time from the separate time quote" });
+  });
+
+  it("lets the end borrow its year from the verified start quote", () => {
+    const r = split(f("2027-01-09", "Saturday, January 9, 2027"), f("2027-01-10", "Sunday, January 10"));
+    expect(r.opportunity).toMatchObject({ start: "2027-01-09T00:00:00-05:00", end: "2027-01-10T23:59:59-05:00" });
+  });
+
+  it("doesn't let the end borrow a year from a start quote that failed verification", () => {
+    const r = split(f("2027-01-09", "Saturday, January 9, 2027 at the hall"), f("2027-01-10", "Sunday, January 10"));
+    expect(report(r, "end")).toMatchObject({ status: "discarded", reason: expect.stringMatching(/year 2027 is not stated/) });
+    expect(r.opportunity).toBeNull();
+  });
+
+  it("doesn't let the start borrow its year from the end", () => {
+    const text = `${PAGE}\nKickoff: Saturday, January 9\nWrap-up: Sunday, January 10, 2027`;
+    const r = build(goodResponse({ start: f("2027-01-09", "Kickoff: Saturday, January 9"), end: f("2027-01-10", "Wrap-up: Sunday, January 10, 2027"), applicationDeadline: f(null, null, null) }), text);
+    expect(report(r, "start")).toMatchObject({ status: "discarded", reason: expect.stringMatching(/year 2027/) });
+  });
+
+  it("drops a time whose time quote isn't verbatim on one line, keeping the date", () => {
+    const r = split(
+      { ...f("2027-01-09T10:00", "Saturday, January 9, 2027"), timeQuote: "Doors open at 10:00 AM sharp" },
+      f("2027-01-10", "Sunday, January 10"),
+    );
+    expect(r.opportunity!.start).toBe("2027-01-09T00:00:00-05:00");
+    expect(report(r, "start")?.reason).toMatch(/time quote is not verbatim/);
+  });
+
+  it("rejects a quote stitched from two lines", () => {
+    const r = split(f("2027-01-09T10:00", "Saturday, January 9, 2027 Doors open at 10:00 AM"), f("2027-01-10", "Sunday, January 10"));
+    expect(report(r, "start")).toMatchObject({ status: "discarded", reason: expect.stringMatching(/one line/) });
+  });
+});
+
+describe("buildOpportunity: location, timezone and officialUrl are decided in code", () => {
+  it("derives the timezone from the verified location, ignoring any timezone the model sends", () => {
+    const r = build({ ...goodResponse(), timezone: f("Asia/Tokyo", "Where: Fictional Hall, Waterloo, ON") });
+    expect(r.opportunity!.timezone).toBe("America/Toronto");
+    expect(report(r, "timezone")).toEqual({
+      field: "timezone",
+      status: "kept",
+      value: "America/Toronto",
+      quote: "Where: Fictional Hall, Waterloo, ON",
+      basis: "derived from stated location",
+      reason: "Waterloo, ON → America/Toronto (city table)",
+    });
+  });
+
+  it("uses the event's own zone for its times", () => {
+    const text = `${PAGE}\nVenue: Fictional Arena, Vancouver, BC`;
+    const r = build(goodResponse({ location: f({ venue: "Fictional Arena", city: "Vancouver", region: "BC", country: null }, "Venue: Fictional Arena, Vancouver, BC") }), text);
+    // The offset comes from tz data, not a guess: BC stays on UTC−7 from late 2026.
+    expect(r.opportunity).toMatchObject({ timezone: "America/Vancouver", start: "2026-11-14T09:00:00-07:00" });
+  });
+
+  it("flags (doesn't reject) a record whose only gap is a timezone it can't derive", () => {
+    const text = `${PAGE}\nHosted at Fictional Hall, Kenora, ON`;
+    const r = build(goodResponse({ location: f({ venue: "Fictional Hall", city: "Kenora", region: "ON", country: null }, "Hosted at Fictional Hall, Kenora, ON") }), text);
+    expect(r).toMatchObject({ opportunity: null, needsReviewerTimezone: true, rejectReason: null });
+    expect(r.draft).not.toHaveProperty("timezone");
+    expect(report(r, "timezone")?.reason).toMatch(/Ontario spans more than one timezone/);
+  });
+
+  it("still rejects when the timezone AND another required fact are missing", () => {
+    const text = `${PAGE}\nHosted at Fictional Hall, Kenora, ON`;
+    const r = build(goodResponse({ start: f(null, null, null), location: f({ venue: "Fictional Hall", city: "Kenora", region: "ON", country: null }, "Hosted at Fictional Hall, Kenora, ON") }), text);
+    expect(r).toMatchObject({ opportunity: null, rejectReason: "required fields missing or unverified: timezone, start" });
+    expect(r.needsReviewerTimezone).toBeUndefined();
+  });
+
+  it("keeps a venue-only location with no country", () => {
+    const text = `${PAGE}\nVenue: Fictional Hall, Nova Scotia`;
+    const r = build(goodResponse({ location: f({ venue: "Fictional Hall", city: null, region: "Nova Scotia", country: null }, "Venue: Fictional Hall, Nova Scotia") }), text);
+    expect(r.opportunity).toMatchObject({ location: { venue: "Fictional Hall", city: null, region: "Nova Scotia", country: null }, timezone: "America/Halifax" });
+  });
+
+  it("always sets officialUrl to the fetched page, whatever the model says", () => {
+    const r = build({ ...goodResponse(), officialUrl: f("https://maple.example/apply", "- Apply: https://maple.example/apply") });
+    expect(r.opportunity!.officialUrl).toBe(PAGE_URL);
+    expect(r.fields.some((x) => x.field === "officialUrl")).toBe(false);
   });
 });
