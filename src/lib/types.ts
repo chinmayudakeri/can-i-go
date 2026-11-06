@@ -121,7 +121,21 @@ export type EvidenceField =
   | "travelSupport"
   | "beginnerFriendly"
   | "teamSize"
+  | "attendanceSessions"
   | `eligibility.${keyof EligibilityRequirements}`;
+
+/**
+ * One block of the event a participant is expected (or invited) to attend,
+ * e.g. "Opening ceremony" or "Hacking". `mandatory: null` means the source
+ * doesn't say, and feasibility treats it as required.
+ */
+export interface AttendanceSession {
+  /** ISO 8601 with offset, inside the event's start and end. */
+  start: string;
+  end: string;
+  label: string | null;
+  mandatory: boolean | null;
+}
 
 export interface Opportunity {
   id: string;
@@ -146,6 +160,11 @@ export interface Opportunity {
   /** ISO 8601 with offset. */
   start: string;
   end: string;
+  /**
+   * Optional schedule. Without it, the whole start–end span is treated as
+   * required attendance. Gaps between sessions (e.g. overnight) aren't required.
+   */
+  attendanceSessions?: AttendanceSession[];
 
   /** ISO 8601 with offset, or `null` if no deadline is published. */
   applicationDeadline: string | null;

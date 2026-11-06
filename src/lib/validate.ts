@@ -153,6 +153,21 @@ export function parseOpportunities(raw: unknown, sourceName: string, options: Pa
       if (!ok) fail('"timezoneConfirmation" needs basis "confirmed by reviewer", a note and a YYYY-MM-DD date');
     }
 
+    if (o.attendanceSessions !== undefined) {
+      if (!Array.isArray(o.attendanceSessions)) fail('"attendanceSessions" must be a list');
+      (o.attendanceSessions as unknown[]).forEach((raw, j) => {
+        const s = raw as Record<string, unknown> | null;
+        const at = `"attendanceSessions[${j}]"`;
+        if (!s || typeof s !== "object") fail(`${at} must be an object`);
+        if (!isValidIsoDateTime(s!.start) || !isValidIsoDateTime(s!.end)) fail(`${at} needs valid start and end dates`);
+        const [start, end] = [Date.parse(s!.start as string), Date.parse(s!.end as string)];
+        if (end <= start) fail(`${at} must end after it starts`);
+        if (start < Date.parse(o.start as string) || end > Date.parse(o.end as string)) fail(`${at} must be within the event's start and end`);
+        if (s!.label !== null && (typeof s!.label !== "string" || !s!.label.trim())) fail(`${at} "label" must be text or null`);
+        if (s!.mandatory !== null && typeof s!.mandatory !== "boolean") fail(`${at} "mandatory" must be true, false or null`);
+      });
+    }
+
     if (!o.eligibility || typeof o.eligibility !== "object") fail('missing "eligibility"');
     const eligibility = o.eligibility as Record<string, unknown>;
     const programs = eligibility.programs;
@@ -196,6 +211,7 @@ export function parseOpportunities(raw: unknown, sourceName: string, options: Pa
     if (options.real) {
       const needs = [
         ...REAL_EVIDENCE_FIELDS.filter((key) => o[key] !== null),
+        ...(Array.isArray(o.attendanceSessions) && o.attendanceSessions.length ? ["attendanceSessions"] : []),
         ...ELIGIBILITY_KEYS.filter((key) => eligibility[key] !== null).map((key) => `eligibility.${key}`),
       ];
       const missing = needs.filter((field) => !evidence[field]);

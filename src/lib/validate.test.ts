@@ -91,3 +91,45 @@ describe("parseOpportunities: location", () => {
     expect(() => parseOne(makeOpportunity({ location: { venue: null, city: "Waterloo", region: null, country: 3 as never } }))).toThrow(/location\.country/);
   });
 });
+
+describe("parseOpportunities: attendance sessions", () => {
+  const session = (start: string, end: string, extra: Record<string, unknown> = {}) => ({ start, end, label: "Hacking", mandatory: true, ...extra });
+
+  it("is optional, so existing data stays valid", () => {
+    expect(parseOne(makeOpportunity())[0].attendanceSessions).toBeUndefined();
+  });
+
+  it("accepts sessions inside the event", () => {
+    const opp = makeOpportunity({
+      attendanceSessions: [
+        session("2026-11-14T09:00:00-05:00", "2026-11-14T12:00:00-05:00"),
+        session("2026-11-14T13:00:00-05:00", "2026-11-14T17:00:00-05:00", { label: null, mandatory: null }),
+      ],
+    });
+    expect(parseOne(opp)[0].attendanceSessions).toHaveLength(2);
+  });
+
+  it.each<[string, unknown, RegExp]>([
+    ["not a list", { start: "x" }, /must be a list/],
+    ["bad date", [session("2026-11-14", "2026-11-14T12:00:00-05:00")], /valid start and end/],
+    ["ends before it starts", [session("2026-11-14T12:00:00-05:00", "2026-11-14T09:00:00-05:00")], /end after it starts/],
+    ["outside the event", [session("2026-11-14T08:00:00-05:00", "2026-11-14T12:00:00-05:00")], /within the event/],
+    ["bad mandatory", [session("2026-11-14T09:00:00-05:00", "2026-11-14T12:00:00-05:00", { mandatory: "yes" })], /mandatory/],
+    ["empty label", [session("2026-11-14T09:00:00-05:00", "2026-11-14T12:00:00-05:00", { label: " " })], /label/],
+  ])("rejects %s", (_name, attendanceSessions, message) => {
+    expect(() => parseOne({ ...makeOpportunity(), attendanceSessions })).toThrow(message);
+  });
+
+  it("real listings need evidence for a session schedule", () => {
+    const src = "https://maple.example";
+    const opp = makeOpportunity({
+      registrationFee: null,
+      travelCostEstimate: null,
+      applicationDeadline: null,
+      eligibility: { studentStatusRequired: null, universities: null, programs: null, years: null, experienceLevels: null, otherRequirements: null },
+      evidence: { start: { quote: "Nov 14, 2026 9am", sourceUrl: src }, end: { quote: "Nov 14, 2026 5pm", sourceUrl: src } },
+      attendanceSessions: [session("2026-11-14T09:00:00-05:00", "2026-11-14T12:00:00-05:00")],
+    });
+    expect(() => parseOne(opp, true)).toThrow(/missing evidence for attendanceSessions/);
+  });
+});

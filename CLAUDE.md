@@ -12,6 +12,8 @@ Commands:
 
 Structure:
 - src/lib: pure functions for eligibility, relevance, and cost math, plus types
+- src/lib/calendar: browser-only .ics import (ical.js), import report, coverage, dedupe, manual commitments, localStorage
+- src/lib/feasibility: pure attendance check (hard conflicts, soft warnings, missing information)
 - src/sources: OpportunitySource interface, DemoSource, RealSource (reads data/real/listings.json). Sources stamp `dataset`; anything not "real" is shown as DEMO
 - src/ingest: Node-only ingestion pipeline (adapters, safe fetching, robots, site policy, extraction, evidence checks, dedupe, store). Never import it from src/app, components, hooks, lib or sources (a test enforces this)
 - scripts: ingest and review CLIs (run with tsx)
@@ -35,4 +37,9 @@ Hard rules:
 - officialUrl is always the fetched page URL, set in code.
 - Site policy (src/ingest/policy.ts): Devpost and MLH are blocked by their terms; Luma only via iCal subscription feeds. robots.txt is checked at runtime for every request. Don't add adapters for sites whose terms forbid automated access.
 - Ingested records always go to pending.json; only `npm run review` writes listings.json.
+- Calendar privacy: calendar data and commitments stay in the browser (localStorage). Calendar and feasibility code never makes network requests, never runs on the server, and never imports src/ingest (src/lib/calendar/privacy.test.ts enforces this).
+- Calendar import never drops content silently: unreadable or unsupported content goes in the import report. Files over 2 MB, or more than 10,000 occurrences, are rejected.
+- Coverage: a date no imported calendar covers is never reported free; the result is "calendar coverage incomplete". Manual commitments don't add coverage.
+- Feasibility: transparent and cancelled events never block time; an assignment is a deadline (a point in time), not a block; overnight gaps between sessions aren't required; a null location or missing travel time makes travel "Needs confirmation", never zero; unknown event hours use a labelled conservative whole-day window; `mandatory: null` sessions are treated as required.
+- attendanceSessions on Opportunity is optional; real listings need evidence for it. The ingestion pipeline doesn't produce it yet.
 - Run tests after changes and fix failures. Commit only when I ask.

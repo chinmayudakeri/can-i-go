@@ -6,6 +6,8 @@ Find student opportunities (hackathons, conferences, workshops…) and check whe
 
 **Stage 2** adds a local ingestion pipeline for real events: `npm run ingest` finds and extracts events, deterministic code keeps only facts quoted verbatim from the source, and nothing reaches the app until you approve it with `npm run review`. There's no database, no accounts, and no paid service; the only AI involved is the Gemini free tier, run from your terminal, never from the web app.
 
+**Stage 3, pass 1** adds calendar import and an attendance check, as pure, tested logic with no UI yet. It reads `.ics` files in the browser, records which dates each calendar covers, and checks an event against your calendar and commitments. See [Stage 3](#stage-3-calendar-and-attendance-check-pass-1).
+
 ## Requirements
 
 - [Node.js](https://nodejs.org/) 20.12 or newer (`node -v` to check)
@@ -61,6 +63,9 @@ src/lib/                Pure logic, no React. All tested.
   feedParams.ts         Filters ⇄ URL query string
   profileStorage.ts     localStorage read/write/delete
   validate.ts           Runtime check of source data (stricter "real listing" mode)
+  zonedTime.ts          Wall clock ⇄ UTC in any IANA zone (DST-aware)
+  calendar/             .ics import, coverage, manual commitments, localStorage (Stage 3)
+  feasibility/          Attendance check: conflicts, warnings, missing info (Stage 3)
 src/sources/            Data source layer (DemoSource, RealSource)
 src/ingest/             Stage 2 pipeline. Node-only, never imported by the app
 scripts/                ingest and review CLIs
@@ -165,6 +170,51 @@ interface OpportunitySource {
 ```
 
 To add one, implement the interface (pass results through `parseOpportunities` from `src/lib/validate.ts`, and stamp each record with `dataset: "demo"` or `"real"`) and add it to the list in `src/sources/index.ts`. `CombinedSource` merges all sources, and later ones win on duplicate ids. Records not stamped `"real"` are labelled DEMO.
+
+## Stage 3: calendar and attendance check (pass 1)
+
+Pass 1 is logic only (`src/lib/calendar`, `src/lib/feasibility`), with tests. The UI comes in a later pass.
+
+### Privacy
+
+Calendar files are parsed in the browser, and the results are stored only in its localStorage (`can-i-go.calendar.v1` for imports, `can-i-go.commitments.v1` for commitments you enter). `deleteCalendarData` removes both. None of this code makes network requests or imports `src/ingest`, and `src/lib/calendar/privacy.test.ts` enforces that.
+
+### Reading .ics files
+
+We use [ical.js](https://github.com/kewisch/ical.js) (2.2.1). It is maintained by the Mozilla Thunderbird calendar team, has no dependencies, runs in the browser, ships TypeScript types, and implements RFC 5545 recurrence (RRULE, RDATE, EXDATE, RECURRENCE-ID) and VTIMEZONE. Hand-rolling recurrence is where calendar bugs live, so we don't.
+
+- **Times.** A TZID with a VTIMEZONE in the file uses that definition. A standard IANA TZID without one (common in exports) is converted with the browser's own timezone data. UTC stays UTC. Floating times (no zone) are read in your timezone, and the report says so. An unknown zone name is reported and the event is skipped.
+- **Recurring events** are expanded from about a month ago to 400 days ahead. EXDATEs are removed, and moved occurrences (RECURRENCE-ID) appear at their new time. A repeat with no end date is included up to that limit, with a warning. EXRULE isn't supported, so those dates stay busy, with a warning.
+- **Status.** Cancelled events and cancelled occurrences are skipped and counted. Tentative events still block time and are labelled tentative. `TRANSP:TRANSPARENT` ("show as free") events are kept but never block time.
+- **All-day events** run from local midnight to midnight. A busy all-day event blocks the whole day, and the explanation says "marked busy all day".
+- **Duplicates.** Each occurrence has a stable key, UID + RECURRENCE-ID + start. Importing the same file again, or the same event from two calendars, adds nothing new. Re-importing a calendar under the same id replaces its events.
+- **Import report.** Every import returns errors (an event couldn't be read: bad date, unknown zone, no start, ends before it starts) and warnings (floating times, to-dos and journals ignored, missing UIDs, open-ended repeats, events outside the window). Nothing is dropped silently.
+- **Limits.** Files over 2 MB, or calendars with more than 10,000 events in the window, are rejected with a message that suggests exporting less. Text that isn't iCalendar is rejected.
+
+### Coverage
+
+Each import records the dates it actually covers: from its earliest event to its latest, in your timezone, plus an optional note from you (e.g. "Fall term classes only"). An empty calendar covers nothing. If any date the event needs, including travel days, isn't inside some calendar's coverage, the result is **calendar coverage incomplete**, never "free". Manual commitments don't add coverage.
+
+### Manual commitments
+
+Kinds are `class`, `exam`, `work` and `personal` (each with a start and an end), and `assignment`, which has only a `due` time: it's a deadline, not a block of occupied time.
+
+### The attendance check
+
+`checkFeasibility` in `src/lib/feasibility` is a pure function. It takes the event, your commitments (imported and manual), coverage, your shortlist, and assumptions: the one-way travel minutes you entered, an arrival buffer, exam preparation days, an assignment warning window, how you'll attend a hybrid event, and your timezone. There are no maps or travel APIs. It returns:
+
+- **Hard conflicts.** Overlap with a required session (or the whole event if no schedule is published), travel there or home, an exam inside your preparation buffer, an overlapping shortlisted event, a passed application deadline, or an event that has already ended.
+- **Soft warnings.** Assignments due within the warning window, optional sessions you'd miss, commitments in a break between sessions (breaks aren't required, but you may be away), and a same-day deadline with an unknown cutoff.
+- **Missing information**, flagged as blocking or not: travel time not entered, location unknown (travel is *Needs confirmation*, never zero), dates no calendar covers, event hours unknown, a session that doesn't say whether it's required, unreadable calendar events, and an unpublished deadline.
+
+Each item names the exact commitment and times in plain language. The status is `conflicts`, `calendar coverage incomplete`, `needs confirmation` or `no conflicts found`, in that order of priority.
+
+Rules it follows:
+
+- Intervals are half-open, so a shift ending at 9:00 doesn't clash with a 9:00 start, but it does once travel or an arrival buffer is needed.
+- **Sessions.** Opportunities may carry `attendanceSessions` (start, end, label, mandatory). `mandatory: null` is treated as required and listed as missing information. Outbound travel is timed to the first required session and the trip home to the last.
+- **Unknown hours.** An event stored as 00:00:00 to 23:59:59 local (how ingestion stores a date with no stated time) gets a conservative all-day window, and the explanation says so.
+- **Exam buffer.** An exam starting less than *N* × 24 hours after the event ends is a hard conflict. Exactly *N* days after is fine.
 
 ### Profile privacy
 
