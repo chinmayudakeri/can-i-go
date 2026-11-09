@@ -221,4 +221,10 @@ export interface StudentProfile {
   budget: number | null;
   budgetCurrency: string;
   formatPreference: FormatPreference;
+  /** Attendance assumptions. Usual one-way travel time to an in-person event, in minutes; null = not entered. */
+  travelMinutes: number | null;
+  /** Minutes to arrive before the first session. */
+  arrivalBufferMinutes: number;
+  /** Days before an exam to keep free for studying. */
+  examPrepDays: number;
 }

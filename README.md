@@ -2,11 +2,11 @@
 
 Find student opportunities (hackathons, conferences, workshops…) and check whether you can actually go: eligibility, deadlines, costs and fit, each explained in plain language.
 
-**Stage 1** runs entirely in the browser on fictional demo data. Every card says "Calendar not checked yet".
+**Stage 1** runs entirely in the browser on fictional demo data.
 
 **Stage 2** adds a local ingestion pipeline for real events: `npm run ingest` finds and extracts events, deterministic code keeps only facts quoted verbatim from the source, and nothing reaches the app until you approve it with `npm run review`. There's no database, no accounts, and no paid service; the only AI involved is the Gemini free tier, run from your terminal, never from the web app.
 
-**Stage 3, pass 1** adds calendar import and an attendance check, as pure, tested logic with no UI yet. It reads `.ics` files in the browser, records which dates each calendar covers, and checks an event against your calendar and commitments. See [Stage 3](#stage-3-calendar-and-attendance-check-pass-1).
+**Stage 3** adds calendar import and an attendance check. You import your `.ics` calendars and add commitments, and every event shows whether you can realistically attend, naming each clash. You can shortlist events, compare them side by side, track applications and export them to your calendar. All of it runs and is stored in your browser. See [Stage 3](#stage-3-calendar-and-attendance-check).
 
 ## Requirements
 
@@ -41,6 +41,7 @@ Open http://localhost:3000. Start at **Profile**, fill in a few fields and save.
 | `npm run ingest`    | Fetch configured feeds and extract events into `data/real/pending.json` |
 | `npm run ingest -- --url <link>` | Extract one event page you choose |
 | `npm run review`    | Approve or reject pending events in the terminal |
+| `npm run ui-check`  | After `npm run build`: drive the built app in headless Chrome at 1280px and 390px, checking layout, labels, keyboard focus and the main flows; screenshots go to `.ui-check/` |
 
 With the Vitest extension installed, you can also run or debug single tests from the **Testing** sidebar (the flask icon).
 
@@ -64,14 +65,17 @@ src/lib/                Pure logic, no React. All tested.
   profileStorage.ts     localStorage read/write/delete
   validate.ts           Runtime check of source data (stricter "real listing" mode)
   zonedTime.ts          Wall clock ⇄ UTC in any IANA zone (DST-aware)
-  calendar/             .ics import, coverage, manual commitments, localStorage (Stage 3)
-  feasibility/          Attendance check: conflicts, warnings, missing info (Stage 3)
+  calendar/             .ics import and export, coverage, manual commitments, localStorage (Stage 3)
+  feasibility/          Attendance check, assumptions from the profile, status labels (Stage 3)
+  shortlist.ts          Saved events, application status, notes (localStorage)
+  privacyData.ts        Every stored key; export and delete all
+scripts/ui-check.ts     Headless Chrome check of the built app
 src/sources/            Data source layer (DemoSource, RealSource)
 src/ingest/             Stage 2 pipeline. Node-only, never imported by the app
 scripts/                ingest and review CLIs
 src/hooks/              React hooks for loading data and profile
 src/components/         UI pieces (cards, badges, cost list…)
-src/app/                Pages: / (Discover), /events/[id], /profile
+src/app/                Pages: / (Discover), /events/[id], /shortlist, /calendar, /profile, /privacy
 ```
 
 ### Rules the app follows
@@ -171,13 +175,36 @@ interface OpportunitySource {
 
 To add one, implement the interface (pass results through `parseOpportunities` from `src/lib/validate.ts`, and stamp each record with `dataset: "demo"` or `"real"`) and add it to the list in `src/sources/index.ts`. `CombinedSource` merges all sources, and later ones win on duplicate ids. Records not stamped `"real"` are labelled DEMO.
 
-## Stage 3: calendar and attendance check (pass 1)
+## Stage 3: calendar and attendance check
 
-Pass 1 is logic only (`src/lib/calendar`, `src/lib/feasibility`), with tests. The UI comes in a later pass.
+The logic lives in `src/lib/calendar` and `src/lib/feasibility` and is pure and tested. The pages use it in the browser.
+
+### Pages
+
+- **Calendar** (`/calendar`). Import one or more `.ics` files, each with a name and an optional note about what it covers. After import you see the import report (problems, notes and counts) and each calendar's coverage dates. Reimport replaces a calendar's events; Disconnect removes one calendar; Delete all calendar data removes everything. Add commitments by hand: class, exam, work and personal have a start and an end, and an assignment has only a due time. With no calendar connected, every event says **Attendance feasibility has not been checked**.
+- **Profile** (`/profile`). Under *Attendance assumptions*: your usual one-way travel time in minutes, how early you like to arrive, and how many days before an exam you keep free. There are no maps or travel lookups; these are your own estimates.
+- **Discover cards and event pages.** The feasibility status comes before the reasons an event might fit you, so a conflict is never buried under a recommendation. Cards list every hard conflict and strong warning in full. The event page also lists every other warning, the missing information, the assumptions used (travel time and where it came from, buffers, timezone, how the event's hours were read) and which calendars were checked. Dates outside your imported coverage show **Calendar coverage incomplete**.
+- **Shortlist** (`/shortlist`). Save or remove events (☆ Shortlist on any card or event page). The page shows:
+  - a side-by-side comparison of dates, feasibility, deadline, eligibility and cost (a table on wide screens, one card per event on phones);
+  - application status (considering, applied, accepted, waitlisted, rejected, attended), private notes, and a per-event travel time that overrides your profile default;
+  - clashes between shortlisted events.
+
+  **Download .ics** exports your shortlist. Attendance becomes timed events (one per session when a schedule is published, all-day when hours aren't published). Each application deadline is a separate entry: at its exact time, or all day when only the date is known. Demo events are prefixed `[DEMO]`.
+- **Privacy** (`/privacy`). Lists exactly what is stored (each localStorage key and its current size), what is never sent anywhere, and what goes to the AI provider: only public event page text, during ingestion run by the developer, never a student's calendar. **Export my data** downloads everything as one JSON file, and **Delete my data** removes all of it.
+
+### Accessibility and design
+
+- **Palette.** Deep green, warm off-white and lime, in light and dark themes. Every text color pair clears WCAG AA (4.5:1). Most clear AAA; the lowest is green on its tint at 5.6:1.
+- **Status.** Shown by shape as well as color (✕ ! ✓ ?).
+- **Keyboard.** A skip link and visible focus rings.
+- **Touch and layout.** Touch targets of at least 44px, with no horizontal scrolling at phone width.
+- **Labels.** Every control has a label. Results and errors are announced with `role="status"` and `role="alert"`.
+
+`npm run ui-check` checks layout, labels, keyboard focus and the main flows in a real browser.
 
 ### Privacy
 
-Calendar files are parsed in the browser, and the results are stored only in its localStorage (`can-i-go.calendar.v1` for imports, `can-i-go.commitments.v1` for commitments you enter). `deleteCalendarData` removes both. None of this code makes network requests or imports `src/ingest`, and `src/lib/calendar/privacy.test.ts` enforces that.
+Calendar files are parsed in the browser, and everything is stored only in its localStorage: `can-i-go.profile.v1`, `can-i-go.calendar.v1`, `can-i-go.commitments.v1` and `can-i-go.shortlist.v1`. `ALL_STORAGE_KEYS` in `src/lib/privacyData.ts` lists them all, and a test fails if a new key isn't listed. Exports (`.ics`, JSON) are built in the browser and saved directly. None of this code makes network requests or imports `src/ingest`, and `src/lib/calendar/privacy.test.ts` enforces that.
 
 ### Reading .ics files
 
@@ -203,8 +230,9 @@ Kinds are `class`, `exam`, `work` and `personal` (each with a start and an end),
 
 `checkFeasibility` in `src/lib/feasibility` is a pure function. It takes the event, your commitments (imported and manual), coverage, your shortlist, and assumptions: the one-way travel minutes you entered, an arrival buffer, exam preparation days, an assignment warning window, how you'll attend a hybrid event, and your timezone. There are no maps or travel APIs. It returns:
 
-- **Hard conflicts.** Overlap with a required session (or the whole event if no schedule is published), travel there or home, an exam inside your preparation buffer, an overlapping shortlisted event, a passed application deadline, or an event that has already ended.
+- **Hard conflicts.** Only clashes with attendance or travel: overlap with a required session (or the whole event if no schedule is published), travel there or home, or an overlapping shortlisted event (its sessions or travel).
 - **Soft warnings.** Assignments due within the warning window, optional sessions you'd miss, commitments in a break between sessions (breaks aren't required, but you may be away), and a same-day deadline with an unknown cutoff.
+- **Strong soft warnings** (`strong: true`, shown as "Strong warning"). An exam inside your preparation buffer, a passed application deadline, or an event that has already ended. They aren't time clashes, but you should weigh them heavily.
 - **Missing information**, flagged as blocking or not: travel time not entered, location unknown (travel is *Needs confirmation*, never zero), dates no calendar covers, event hours unknown, a session that doesn't say whether it's required, unreadable calendar events, and an unpublished deadline.
 
 Each item names the exact commitment and times in plain language. The status is `conflicts`, `calendar coverage incomplete`, `needs confirmation` or `no conflicts found`, in that order of priority.
@@ -214,7 +242,7 @@ Rules it follows:
 - Intervals are half-open, so a shift ending at 9:00 doesn't clash with a 9:00 start, but it does once travel or an arrival buffer is needed.
 - **Sessions.** Opportunities may carry `attendanceSessions` (start, end, label, mandatory). `mandatory: null` is treated as required and listed as missing information. Outbound travel is timed to the first required session and the trip home to the last.
 - **Unknown hours.** An event stored as 00:00:00 to 23:59:59 local (how ingestion stores a date with no stated time) gets a conservative all-day window, and the explanation says so.
-- **Exam buffer.** An exam starting less than *N* × 24 hours after the event ends is a hard conflict. Exactly *N* days after is fine.
+- **Exam buffer.** An exam starting less than *N* × 24 hours after the event ends, or in a break during it, is a strong warning. Exactly *N* days after is fine. An exam that overlaps a session or your travel is a hard conflict.
 
 ### Profile privacy
 

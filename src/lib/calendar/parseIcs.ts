@@ -101,6 +101,25 @@ function readTime(t: Time | null | undefined, tzid: string | null, timezone: str
 const SUPPORTED_COMPONENTS = new Set(["vevent", "vtimezone"]);
 const COMPONENT_NAMES: Record<string, string> = { vtodo: "to-do item", vjournal: "journal entry", vfreebusy: "free/busy block", valarm: "alarm" };
 
+/** The rejection for a file over MAX_ICS_BYTES, so the browser can refuse it before reading it. */
+export function tooLargeResult(bytes: number, calendarName: string): ImportResult {
+  return {
+    ok: false,
+    report: {
+      ok: false,
+      calendarName,
+      errors: [
+        {
+          code: "too-large",
+          message: `This file is ${(bytes / 1024 / 1024).toFixed(1)} MB. The limit is ${MAX_ICS_BYTES / 1024 / 1024} MB; try exporting a shorter date range.`,
+        },
+      ],
+      warnings: [],
+      counts: { components: 0, occurrences: 0, cancelled: 0, transparent: 0, duplicates: 0, unreadable: 0 },
+    },
+  };
+}
+
 export function parseIcs(text: string, options: ParseIcsOptions): ImportResult {
   const { calendarId, calendarName, timezone, now } = options;
   const errors = new IssueList();
@@ -113,9 +132,7 @@ export function parseIcs(text: string, options: ParseIcsOptions): ImportResult {
   };
 
   const bytes = new TextEncoder().encode(text).length;
-  if (bytes > MAX_ICS_BYTES) {
-    return fail({ code: "too-large", message: `This file is ${(bytes / 1024 / 1024).toFixed(1)} MB. The limit is ${MAX_ICS_BYTES / 1024 / 1024} MB; try exporting a shorter date range.` });
-  }
+  if (bytes > MAX_ICS_BYTES) return tooLargeResult(bytes, calendarName);
 
   let roots: Component[];
   try {

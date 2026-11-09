@@ -8,12 +8,16 @@ import { DatasetLabel } from "@/components/DatasetLabel";
 import { DeadlineText } from "@/components/DeadlineText";
 import { EligibilityBadge } from "@/components/EligibilityBadge";
 import { EvidenceNote } from "@/components/EvidenceNote";
+import { FeasibilityPanel } from "@/components/FeasibilityPanel";
+import { ShortlistButton } from "@/components/ShortlistButton";
 import { RelevanceReasons } from "@/components/RelevanceReasons";
 import { StateMessage } from "@/components/StateMessage";
 import { TimezoneSource } from "@/components/TimezoneSource";
 import { useNow } from "@/hooks/useNow";
 import { useOpportunities } from "@/hooks/useOpportunities";
 import { useProfile } from "@/hooks/useProfile";
+import { useStudentContext } from "@/hooks/useStudentContext";
+import { feasibilityFor } from "@/lib/feasibility/forOpportunity";
 import { buildFeedItem } from "@/lib/feed";
 import {
   FORMAT_LABELS,
@@ -57,6 +61,7 @@ export default function EventDetailPage() {
   return (
     <EventDetail
       opportunity={opportunity}
+      opportunities={opps.opportunities}
       profile={profileState.status === "ready" ? profileState.profile : null}
       profileError={profileState.status === "error" ? profileState.error : null}
     />
@@ -65,15 +70,19 @@ export default function EventDetailPage() {
 
 function EventDetail({
   opportunity: o,
+  opportunities,
   profile,
   profileError,
 }: {
   opportunity: Opportunity;
+  opportunities: Opportunity[];
   profile: StudentProfile | null;
   profileError: string | null;
 }) {
   const now = useNow();
   const item = useMemo(() => buildFeedItem(o, profile, now), [o, profile, now]);
+  const { state: student, shortlist } = useStudentContext(opportunities, profile);
+  const feasibility = useMemo(() => (student.status === "ready" ? feasibilityFor(o, student.ctx, now) : null), [o, student, now]);
   const { eligibility, deadline, costs, relevance } = item;
   const sources = [...new Set([o.sourceUrl, ...(o.sourceUrls ?? [])])];
 
@@ -104,6 +113,11 @@ function EventDetail({
           ) : (
             <span className="muted">No application link published</span>
           )}
+          <ShortlistButton
+            name={o.name}
+            saved={shortlist.isSaved(o.id)}
+            onToggle={() => (shortlist.isSaved(o.id) ? shortlist.remove(o.id) : shortlist.add(o.id))}
+          />
         </div>
       </header>
 
@@ -135,9 +149,15 @@ function EventDetail({
             {o.teamSize ? (o.teamSize.min === o.teamSize.max ? o.teamSize.min : `${o.teamSize.min}–${o.teamSize.max}`) : "Not stated"}
           </dd>
           <dt>Calendar</dt>
-          <dd className="calendar-pending">Not checked yet</dd>
+          <dd>{feasibility ? feasibility.view.label : "Checking…"} (see below)</dd>
         </dl>
       </section>
+
+      <FeasibilityPanel
+        feasibility={feasibility}
+        coverage={student.status === "ready" ? student.ctx.coverage : []}
+        calendarError={student.status === "ready" ? student.calendarError : null}
+      />
 
       <section className="panel">
         <h2>Application deadline</h2>

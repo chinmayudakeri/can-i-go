@@ -4,6 +4,8 @@ export const PROFILE_STORAGE_KEY = "can-i-go.profile.v1";
 
 export const DEFAULT_CURRENCY = "CAD";
 export const DEFAULT_STARTING_LOCATION = "Waterloo, ON";
+export const DEFAULT_ARRIVAL_BUFFER_MINUTES = 30;
+export const DEFAULT_EXAM_PREP_DAYS = 2;
 
 export const EMPTY_PROFILE: StudentProfile = {
   university: "",
@@ -17,6 +19,9 @@ export const EMPTY_PROFILE: StudentProfile = {
   budget: null,
   budgetCurrency: DEFAULT_CURRENCY,
   formatPreference: "either",
+  travelMinutes: null,
+  arrivalBufferMinutes: DEFAULT_ARRIVAL_BUFFER_MINUTES,
+  examPrepDays: DEFAULT_EXAM_PREP_DAYS,
 };
 
 const YEARS: StudyYear[] = ["1", "2", "3", "4", "5+", "graduate"];
@@ -51,6 +56,10 @@ export function sanitizeProfile(raw: unknown): StudentProfile {
     budget: num(r.budget),
     budgetCurrency: str(r.budgetCurrency) || DEFAULT_CURRENCY,
     formatPreference: oneOf(r.formatPreference, FORMATS) ?? "either",
+    // Saves from before Stage 3 have none of these; they get the defaults.
+    travelMinutes: num(r.travelMinutes),
+    arrivalBufferMinutes: num(r.arrivalBufferMinutes) ?? DEFAULT_ARRIVAL_BUFFER_MINUTES,
+    examPrepDays: num(r.examPrepDays) ?? DEFAULT_EXAM_PREP_DAYS,
   };
 }
 

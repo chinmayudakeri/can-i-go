@@ -62,6 +62,8 @@ export interface Finding {
   commitmentId: string | null;
   /** For shortlist overlaps: the other opportunity. */
   opportunityId: string | null;
+  /** Soft warnings only: worth weighing heavily (exam prep, closed applications), though not a time clash. */
+  strong?: boolean;
 }
 
 export interface MissingInfo {

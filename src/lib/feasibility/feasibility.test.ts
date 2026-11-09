@@ -163,6 +163,7 @@ describe("calendar coverage", () => {
   });
 
   it("hard conflicts are still reported when coverage is incomplete", () => {
+    // An exam during the event clashes with it directly, so it stays hard.
     const exam = manual({ kind: "exam", title: "Final", start: "2026-11-14T10:00:00-05:00", end: "2026-11-14T12:00:00-05:00" });
     expect(check(saturday, { commitments: [exam], coverage: [] }).status).toBe("conflicts");
   });
@@ -174,10 +175,12 @@ describe("calendar coverage", () => {
 });
 
 describe("deadlines", () => {
-  it("a passed application deadline is a hard conflict", () => {
+  it("a passed application deadline is a strong warning, not a time clash", () => {
     const r = check(saturday, { now: new Date("2026-11-05T12:00:00Z") });
-    expect(r.hardConflicts.map((f) => f.code)).toEqual(["deadline-passed"]);
-    expect(r.hardConflicts[0].message).toBe("Applications for Test Event closed Sun, Nov 1, 11:59 PM EST.");
+    expect(r.hardConflicts).toEqual([]);
+    expect(r.softWarnings).toEqual([
+      { code: "deadline-passed", message: "Applications for Test Event closed Sun, Nov 1, 11:59 PM EST.", commitmentId: null, opportunityId: null, strong: true },
+    ]);
   });
 
   it("an unknown deadline is listed as missing but doesn't block", () => {
@@ -187,7 +190,9 @@ describe("deadlines", () => {
   });
 
   it("an event that has already ended", () => {
-    expect(check(saturday, { now: new Date("2026-11-20T12:00:00Z") }).hardConflicts.map((f) => f.code)).toContain("event-ended");
+    const r = check(saturday, { now: new Date("2026-11-20T12:00:00Z") });
+    expect(r.softWarnings.find((f) => f.code === "event-ended")).toMatchObject({ strong: true });
+    expect(r.hardConflicts).toEqual([]);
   });
 });
 
@@ -198,13 +203,36 @@ describe("exams and assignments", () => {
   it("an exam exactly at the edge of the preparation buffer is fine", () => {
     const r = check(saturday, { commitments: [exam("2026-11-16T17:00:00-05:00", "2026-11-16T19:30:00-05:00")], assumptions: { examPrepDays: 2 } });
     expect(r.hardConflicts).toEqual([]);
+    expect(r.softWarnings).toEqual([]);
   });
 
-  it("one minute earlier is inside the buffer", () => {
+  it("one minute earlier is a strong soft warning, not a hard conflict", () => {
     const r = check(saturday, { commitments: [exam("2026-11-16T16:59:00-05:00", "2026-11-16T19:30:00-05:00")], assumptions: { examPrepDays: 2 } });
-    expect(r.hardConflicts.map((f) => f.message)).toEqual([
-      'Your exam "MATH 999 final" (Mon, Nov 16, 4:59 – 7:30 PM EST) is 1 day 23 hours 59 minutes after Test Event ends (Sat, Nov 14, 5:00 PM EST), inside your 2-day exam preparation buffer.',
+    expect(r.hardConflicts).toEqual([]);
+    expect(r.status).toBe("no conflicts found");
+    expect(r.softWarnings).toEqual([
+      {
+        code: "exam-prep",
+        message:
+          'Your exam "MATH 999 final" (Mon, Nov 16, 4:59 – 7:30 PM EST) is 1 day 23 hours 59 minutes after Test Event ends (Sat, Nov 14, 5:00 PM EST), inside your 2-day exam preparation buffer.',
+        commitmentId: "MATH 999 final",
+        opportunityId: null,
+        strong: true,
+      },
     ]);
+  });
+
+  it("an exam in a break between sessions is a strong warning that says so", () => {
+    const twoDays = makeOpportunity({
+      end: "2026-11-15T17:00:00-05:00",
+      attendanceSessions: [
+        { start: "2026-11-14T09:00:00-05:00", end: "2026-11-14T12:00:00-05:00", label: "Day 1", mandatory: true },
+        { start: "2026-11-15T09:00:00-05:00", end: "2026-11-15T17:00:00-05:00", label: "Day 2", mandatory: true },
+      ],
+    });
+    const r = check(twoDays, { commitments: [exam("2026-11-14T14:00:00-05:00", "2026-11-14T16:00:00-05:00")] });
+    expect(r.hardConflicts).toEqual([]);
+    expect(r.softWarnings.find((f) => f.code === "exam-prep")?.message).toMatch(/falls during Test Event \(between sessions\), inside your 2-day/);
   });
 
   it("an exam during the event is a direct conflict, reported once", () => {

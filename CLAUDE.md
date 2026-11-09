@@ -9,11 +9,15 @@ Commands:
 - npm test (Vitest)
 - npm run ingest [-- --url <link>] [--max-calls N] [--dry-run] [--show-rejected] [--force]: real-data ingestion into data/real/pending.json (--force re-extracts pages recorded as rejected)
 - npm run review: approve/reject pending records into data/real/listings.json
+- npm run ui-check (after npm run build): headless Chrome via playwright-core at 1280px and 390px; screenshots in .ui-check/ (gitignored)
 
 Structure:
 - src/lib: pure functions for eligibility, relevance, and cost math, plus types
 - src/lib/calendar: browser-only .ics import (ical.js), import report, coverage, dedupe, manual commitments, localStorage
-- src/lib/feasibility: pure attendance check (hard conflicts, soft warnings, missing information)
+- src/lib/feasibility: pure attendance check (hard conflicts, soft warnings, missing information), assumptionsFromProfile, feasibilityView, buildStudentContext/feasibilityFor
+- src/lib/shortlist.ts, src/lib/privacyData.ts (ALL_STORAGE_KEYS), src/lib/calendar/exportIcs.ts
+- src/hooks: useCalendarData, useShortlist, useStudentContext (localStorage; actions build on the latest state via refs)
+- src/app: /, /events/[id], /shortlist, /calendar, /profile, /privacy
 - src/sources: OpportunitySource interface, DemoSource, RealSource (reads data/real/listings.json). Sources stamp `dataset`; anything not "real" is shown as DEMO
 - src/ingest: Node-only ingestion pipeline (adapters, safe fetching, robots, site policy, extraction, evidence checks, dedupe, store). Never import it from src/app, components, hooks, lib or sources (a test enforces this)
 - scripts: ingest and review CLIs (run with tsx)
@@ -40,6 +44,9 @@ Hard rules:
 - Calendar privacy: calendar data and commitments stay in the browser (localStorage). Calendar and feasibility code never makes network requests, never runs on the server, and never imports src/ingest (src/lib/calendar/privacy.test.ts enforces this).
 - Calendar import never drops content silently: unreadable or unsupported content goes in the import report. Files over 2 MB, or more than 10,000 occurrences, are rejected.
 - Coverage: a date no imported calendar covers is never reported free; the result is "calendar coverage incomplete". Manual commitments don't add coverage.
+- Hard conflicts are only clashes with attendance sessions or travel (including overlapping shortlisted events). An exam inside the prep buffer, a passed application deadline and an ended event are strong soft warnings (`strong: true`).
+- UI: show the feasibility status before relevance, and never hide a hard conflict behind a recommendation or a count on cards. With no calendar connected, say "Attendance feasibility has not been checked" (conflicts from manual commitments still show). Uncovered dates say "Calendar coverage incomplete". Always show the assumptions used.
+- Every new localStorage key must be added to ALL_STORAGE_KEYS (a test enforces this) and described on the privacy page. The UI must not name the AI vendor (the secrets test bans "GEMINI" in frontend files).
 - Feasibility: transparent and cancelled events never block time; an assignment is a deadline (a point in time), not a block; overnight gaps between sessions aren't required; a null location or missing travel time makes travel "Needs confirmation", never zero; unknown event hours use a labelled conservative whole-day window; `mandatory: null` sessions are treated as required.
 - attendanceSessions on Opportunity is optional; real listings need evidence for it. The ingestion pipeline doesn't produce it yet.
 - Run tests after changes and fix failures. Commit only when I ask.

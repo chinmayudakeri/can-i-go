@@ -9,3 +9,9 @@ next-env.d.ts
 coverage/
 # Temp files from atomic writes in data/real
 data/real/*.tmp
+
+# Screenshots from npm run ui-check
+.ui-check/
+*.ics
+!src/lib/calendar/fixtures/*.ics
+.ui-check/

@@ -8,6 +8,8 @@ import { StateMessage } from "@/components/StateMessage";
 import { useNow } from "@/hooks/useNow";
 import { useOpportunities } from "@/hooks/useOpportunities";
 import { useProfile } from "@/hooks/useProfile";
+import { useStudentContext, type StudentContextState } from "@/hooks/useStudentContext";
+import { feasibilityFor } from "@/lib/feasibility/forOpportunity";
 import { ELIGIBILITY_LABELS } from "@/lib/eligibility";
 import { DEFAULT_FILTERS, getFeed, getFilterOptions, type FeedFilters, type FeedItem, type SortKey } from "@/lib/feed";
 import { parseFeedParams, toFeedParams } from "@/lib/feedParams";
@@ -136,6 +138,11 @@ function Feed({ opportunities, profile }: { opportunities: Opportunity[]; profil
     [filters, sort, router, pathname],
   );
   const reset = () => router.replace(pathname, { scroll: false });
+  const { state: student, shortlist } = useStudentContext(opportunities, profile);
+  const shortlistProps: ShortlistProps = {
+    isSaved: shortlist.isSaved,
+    toggle: (id) => (shortlist.isSaved(id) ? shortlist.remove(id) : shortlist.add(id)),
+  };
 
   // Filters start expanded on wide screens and collapsed on phones.
   const detailsRef = useRef<HTMLDetailsElement>(null);
@@ -254,6 +261,7 @@ function Feed({ opportunities, profile }: { opportunities: Opportunity[]; profil
       </form>
 
       <section aria-label="Results">
+        <StudentNotices state={student} />
         <p className="result-count" aria-live="polite">
           {items.length} of {opportunities.length} events
         </p>
@@ -280,6 +288,8 @@ function Feed({ opportunities, profile }: { opportunities: Opportunity[]; profil
                   : "No real listings have been reviewed yet."
               }
               now={now}
+              student={student}
+              shortlist={shortlistProps}
             />
             <FeedSection
               id="demo-listings"
@@ -288,11 +298,38 @@ function Feed({ opportunities, profile }: { opportunities: Opportunity[]; profil
               items={items.filter((i) => i.opportunity.dataset !== "real")}
               empty="No demo events match these filters."
               now={now}
+              student={student}
+              shortlist={shortlistProps}
             />
           </>
         )}
       </section>
     </div>
+  );
+}
+
+type ShortlistProps = { isSaved: (id: string) => boolean; toggle: (id: string) => string | null };
+
+function StudentNotices({ state }: { state: StudentContextState }) {
+  if (state.status !== "ready") return null;
+  return (
+    <>
+      {state.calendarError && (
+        <p className="notice notice-warn" role="alert">
+          Couldn&apos;t read your saved calendar ({state.calendarError}). Attendance can&apos;t be checked.
+        </p>
+      )}
+      {state.shortlistError && (
+        <p className="notice notice-warn" role="alert">
+          Couldn&apos;t read your shortlist ({state.shortlistError}).
+        </p>
+      )}
+      {!state.calendarError && !state.ctx.calendarsConnected && (
+        <p className="notice">
+          No calendar connected: attendance feasibility has not been checked. <Link href="/calendar">Import a calendar</Link>.
+        </p>
+      )}
+    </>
   );
 }
 
@@ -303,6 +340,8 @@ function FeedSection({
   items,
   empty,
   now,
+  student,
+  shortlist,
 }: {
   id: string;
   title: string;
@@ -310,7 +349,13 @@ function FeedSection({
   items: FeedItem[];
   empty: string;
   now: Date;
+  student: StudentContextState;
+  shortlist: ShortlistProps;
 }) {
+  const checks = useMemo(
+    () => new Map(student.status === "ready" ? items.map((i) => [i.opportunity.id, feasibilityFor(i.opportunity, student.ctx, now)]) : []),
+    [items, student, now],
+  );
   return (
     <section className="feed-section" aria-labelledby={id}>
       <h2 id={id}>
@@ -322,7 +367,14 @@ function FeedSection({
       ) : (
         <div className="cards">
           {items.map((item) => (
-            <OpportunityCard key={item.opportunity.id} item={item} now={now} />
+            <OpportunityCard
+              key={item.opportunity.id}
+              item={item}
+              now={now}
+              feasibility={checks.get(item.opportunity.id) ?? null}
+              saved={shortlist.isSaved(item.opportunity.id)}
+              onToggleSave={() => shortlist.toggle(item.opportunity.id)}
+            />
           ))}
         </div>
       )}

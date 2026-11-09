@@ -138,12 +138,12 @@ function checkTimed(
     const span = requiredSpan(plan.windows);
     const bufferEnd = span.end + a.examPrepDays * DAY_MS;
     if (cw.start >= span.start && cw.start < bufferEnd) {
-      hard.push(
-        finding(
-          "exam-prep",
-          `${who} is ${formatDuration(cw.start - span.end)} after ${opp.name} ends (${formatMoment(span.end, tz)}), inside your ${a.examPrepDays}-day exam preparation buffer.`,
-        ),
-      );
+      const when =
+        cw.start < span.end
+          ? `falls during ${opp.name} (between sessions)`
+          : `is ${formatDuration(cw.start - span.end)} after ${opp.name} ends (${formatMoment(span.end, tz)})`;
+      // A strong warning, not a hard conflict: you can attend, but it eats into the prep time you asked for.
+      soft.push({ ...finding("exam-prep", `${who} ${when}, inside your ${a.examPrepDays}-day exam preparation buffer.`), strong: true });
     }
   }
 }
@@ -231,11 +231,17 @@ export function checkFeasibility(input: FeasibilityInput): FeasibilityResult {
   const missing: MissingInfo[] = [];
 
   if (Date.parse(opp.end) <= now.getTime()) {
-    hard.push({ code: "event-ended", message: `${opp.name} has already ended.`, commitmentId: null, opportunityId: null });
+    soft.push({ code: "event-ended", message: `${opp.name} has already ended.`, commitmentId: null, opportunityId: null, strong: true });
   }
   const deadline = getDeadlineStatus(opp, now);
   if (deadline.kind === "passed") {
-    hard.push({ code: "deadline-passed", message: `Applications for ${opp.name} closed ${formatMoment(deadline.deadline.getTime(), tz)}.`, commitmentId: null, opportunityId: null });
+    soft.push({
+      code: "deadline-passed",
+      message: `Applications for ${opp.name} closed ${formatMoment(deadline.deadline.getTime(), tz)}.`,
+      commitmentId: null,
+      opportunityId: null,
+      strong: true,
+    });
   } else if (deadline.kind === "uncertain") {
     soft.push({
       code: "deadline-uncertain",

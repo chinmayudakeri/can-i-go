@@ -71,4 +71,14 @@ describe("profile storage", () => {
     expect(p.interests).toEqual(["AI"]);
     expect(p.formatPreference).toBe("either");
   });
+
+  it("fills attendance assumptions with defaults for saves made before Stage 3", () => {
+    const p = sanitizeProfile({ university: "University of Waterloo" });
+    expect(p).toMatchObject({ travelMinutes: null, arrivalBufferMinutes: 30, examPrepDays: 2 });
+    expect(sanitizeProfile({ travelMinutes: 45, arrivalBufferMinutes: 0, examPrepDays: -1 })).toMatchObject({
+      travelMinutes: 45,
+      arrivalBufferMinutes: 0,
+      examPrepDays: 2,
+    });
+  });
 });
