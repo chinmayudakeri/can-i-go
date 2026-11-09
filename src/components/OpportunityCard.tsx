@@ -19,8 +19,8 @@ export function OpportunityCard({
 }: {
   item: FeedItem;
   now: Date;
-  /** null while the browser's calendar data is loading. */
-  feasibility: OpportunityFeasibility | null;
+  /** null while the browser's calendar data is loading; "off" when "Use my calendar" is off (nothing is shown). */
+  feasibility: OpportunityFeasibility | null | "off";
   saved: boolean;
   onToggleSave: () => string | null;
 }) {
@@ -54,7 +54,7 @@ export function OpportunityCard({
       <DeadlineText deadline={deadline} opportunity={o} now={now} />
 
       {/* Attendance comes before relevance so a conflict is never buried under reasons to go. */}
-      <FeasibilitySummary feasibility={feasibility} detailHref={href} />
+      {feasibility !== "off" && <FeasibilitySummary feasibility={feasibility} detailHref={href} />}
 
       <section aria-label="Costs">
         <CostList costs={costs} />

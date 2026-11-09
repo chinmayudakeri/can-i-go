@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import realListings from "@data/real/listings.json";
+import { CalendarToggle } from "@/components/CalendarToggle";
 import { NavLinks } from "@/components/NavLinks";
 import "./globals.css";
 
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             Can I Go?
           </Link>
           <NavLinks />
+          <CalendarToggle />
         </header>
         <div className="demo-banner" role="note">
           {realListings.length > 0

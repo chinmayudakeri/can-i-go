@@ -55,14 +55,14 @@ function Shortlist({ opportunities, profile }: { opportunities: Opportunity[]; p
   const saved = useMemo(() => shortlist.list.filter((s) => byId.has(s.opportunityId)), [shortlist.list, byId]);
   const gone = useMemo(() => shortlist.list.filter((s) => !byId.has(s.opportunityId)), [shortlist.list, byId]);
 
+  // With "Use my calendar" off, the comparison has no attendance row and the engine isn't run.
+  const calendarOn = state.status === "ready";
   const columns = useMemo(
     () =>
-      state.status === "ready"
-        ? saved.map((s) => {
-            const o = byId.get(s.opportunityId)!;
-            return { saved: s, item: buildFeedItem(o, profile, now), feasibility: feasibilityFor(o, state.ctx, now) };
-          })
-        : [],
+      saved.map((s) => {
+        const o = byId.get(s.opportunityId)!;
+        return { saved: s, item: buildFeedItem(o, profile, now), feasibility: state.status === "ready" ? feasibilityFor(o, state.ctx, now) : null };
+      }),
     [state, saved, byId, profile, now],
   );
   const pairs = useMemo(
@@ -73,11 +73,11 @@ function Shortlist({ opportunities, profile }: { opportunities: Opportunity[]; p
     [state, profile],
   );
 
-  if (state.status === "loading") return <StateMessage kind="loading" title="Loading your shortlist…" />;
-  if (state.shortlistError) {
+  if (state.status === "loading" || shortlist.state.status === "loading") return <StateMessage kind="loading" title="Loading your shortlist…" />;
+  if (shortlist.state.status === "error") {
     return (
       <StateMessage kind="error" title="Couldn't read your shortlist">
-        <p>{state.shortlistError}</p>
+        <p>{shortlist.state.error}</p>
       </StateMessage>
     );
   }
@@ -98,24 +98,26 @@ function Shortlist({ opportunities, profile }: { opportunities: Opportunity[]; p
 
   return (
     <div className="stack">
-      {!state.ctx.calendarsConnected && (
+      {calendarOn && !state.ctx.calendarsConnected && (
         <p className="notice">
           No calendar connected: attendance feasibility has not been checked. <Link href="/calendar">Import a calendar</Link>.
         </p>
       )}
 
-      <section className="panel" aria-labelledby="clash-heading">
-        <h2 id="clash-heading">Clashes between shortlisted events ({pairs.length})</h2>
-        {pairs.length ? (
-          <ul className="feas-list feas-bad-list">
-            {pairs.map((p) => (
-              <li key={`${p.a}-${p.b}`}>{p.message}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="muted">None: no two shortlisted events overlap{saved.length < 2 ? " (save at least two to compare)" : ""}.</p>
-        )}
-      </section>
+      {calendarOn && (
+        <section className="panel" aria-labelledby="clash-heading">
+          <h2 id="clash-heading">Clashes between shortlisted events ({pairs.length})</h2>
+          {pairs.length ? (
+            <ul className="feas-list feas-bad-list">
+              {pairs.map((p) => (
+                <li key={`${p.a}-${p.b}`}>{p.message}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">None: no two shortlisted events overlap{saved.length < 2 ? " (save at least two to compare)" : ""}.</p>
+          )}
+        </section>
+      )}
 
       <section className="panel" aria-labelledby="compare-heading">
         <h2 id="compare-heading">Compare</h2>
@@ -135,10 +137,14 @@ function Shortlist({ opportunities, profile }: { opportunities: Opportunity[]; p
                   <dd>
                     {formatEventDates(o)} · {formatPlace(o)}
                   </dd>
-                  <dt>Can you attend?</dt>
-                  <dd>
-                    <FeasibilitySummary feasibility={feasibility} detailHref={href} compact />
-                  </dd>
+                  {calendarOn && (
+                    <>
+                      <dt>Can you attend?</dt>
+                      <dd>
+                        <FeasibilitySummary feasibility={feasibility} detailHref={href} compact />
+                      </dd>
+                    </>
+                  )}
                   <dt>Deadline</dt>
                   <dd>
                     <DeadlineText deadline={item.deadline} opportunity={o} now={now} />
@@ -185,13 +191,15 @@ function Shortlist({ opportunities, profile }: { opportunities: Opportunity[]; p
                   </td>
                 ))}
               </Row>
-              <Row label="Can you attend?">
-                {columns.map(({ item, feasibility }) => (
-                  <td key={item.opportunity.id}>
-                    <FeasibilitySummary feasibility={feasibility} detailHref={`/events/${encodeURIComponent(item.opportunity.id)}`} compact />
-                  </td>
-                ))}
-              </Row>
+              {calendarOn && (
+                <Row label="Can you attend?">
+                  {columns.map(({ item, feasibility }) => (
+                    <td key={item.opportunity.id}>
+                      <FeasibilitySummary feasibility={feasibility} detailHref={`/events/${encodeURIComponent(item.opportunity.id)}`} compact />
+                    </td>
+                  ))}
+                </Row>
+              )}
               <Row label="Deadline">
                 {columns.map(({ item }) => (
                   <td key={item.opportunity.id}>
@@ -228,7 +236,7 @@ function Shortlist({ opportunities, profile }: { opportunities: Opportunity[]; p
         <h2 id="manage-heading">Your applications</h2>
         <ul className="saved-list">
           {saved.map((s) => (
-            <SavedItem key={s.opportunityId} saved={s} opportunity={byId.get(s.opportunityId)!} profile={profile} actions={shortlist} />
+            <SavedItem key={s.opportunityId} saved={s} opportunity={byId.get(s.opportunityId)!} profile={profile} actions={shortlist} calendarOn={calendarOn} />
           ))}
         </ul>
         {gone.length > 0 && (
@@ -281,11 +289,14 @@ function SavedItem({
   opportunity: o,
   profile,
   actions,
+  calendarOn,
 }: {
   saved: SavedOpportunity;
   opportunity: Opportunity;
   profile: StudentProfile | null;
   actions: ReturnType<typeof useStudentContext>["shortlist"];
+  /** The per-event travel time only matters for attendance checks. */
+  calendarOn: boolean;
 }) {
   const [notes, setNotes] = useState(s.notes);
   const [error, setError] = useState<string | null>(null);
@@ -309,7 +320,7 @@ function SavedItem({
             ))}
           </select>
         </label>
-        {o.format !== "online" && (
+        {calendarOn && o.format !== "online" && (
           <label className="field">
             <span>Travel time for this event (minutes, one way)</span>
             <input

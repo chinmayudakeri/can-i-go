@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { downloadFile } from "@/components/download";
+import { notifyCalendarToggleChanged, useCalendarEnabled } from "@/hooks/useCalendarEnabled";
 import { ALL_STORAGE_KEYS, deleteAllData, exportAllData } from "@/lib/privacyData";
 
 type Usage = { key: string; bytes: number | null }[];
@@ -10,6 +11,7 @@ type Usage = { key: string; bytes: number | null }[];
 export default function PrivacyPage() {
   const [usage, setUsage] = useState<Usage | null>(null);
   const [status, setStatus] = useState<{ error: boolean; text: string } | null>(null);
+  const toggle = useCalendarEnabled();
 
   const measure = useCallback(() => {
     try {
@@ -34,6 +36,7 @@ export default function PrivacyPage() {
     if (!window.confirm("Delete your profile, calendars, commitments and shortlist from this browser? This can't be undone.")) return;
     try {
       deleteAllData(window.localStorage);
+      notifyCalendarToggleChanged(); // the switch's saved setting was deleted too, so it reads as off
       measure();
       setStatus({ error: false, text: "All your Can I Go? data was deleted from this browser." });
     } catch (e) {
@@ -47,6 +50,24 @@ export default function PrivacyPage() {
         <h1>Privacy</h1>
         <p className="muted">There are no accounts and no server-side storage. Here is exactly what happens to your data.</p>
       </div>
+
+      <section className="panel" aria-labelledby="toggle-heading">
+        <h2 id="toggle-heading">Use my calendar</h2>
+        <p>
+          <strong>
+            {!toggle.ready ? "Checking…" : toggle.enabled ? "Use my calendar is on." : "Use my calendar is off."}
+          </strong>{" "}
+          {toggle.ready &&
+            (toggle.enabled
+              ? "Events are checked against your imported calendars and commitments, in this browser."
+              : "No attendance checks run, and calendar features are hidden.")}{" "}
+          Change it with the switch at the top of the page.
+        </p>
+        <p>
+          Either way, calendar data stays on this device. Turning the switch off doesn&apos;t delete anything you imported or
+          entered; use <strong>Delete my data</strong> below for that.
+        </p>
+      </section>
 
       <section className="panel" aria-labelledby="stored-heading">
         <h2 id="stored-heading">Stored in this browser only</h2>

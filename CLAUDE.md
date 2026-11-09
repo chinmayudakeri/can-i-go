@@ -9,7 +9,7 @@ Commands:
 - npm test (Vitest)
 - npm run ingest [-- --url <link>] [--max-calls N] [--dry-run] [--show-rejected] [--force]: real-data ingestion into data/real/pending.json (--force re-extracts pages recorded as rejected)
 - npm run review: approve/reject pending records into data/real/listings.json
-- npm run ui-check (after npm run build): headless Chrome via playwright-core at 1280px and 390px; screenshots in .ui-check/ (gitignored)
+- npm run ui-check (after npm run build): headless Chrome via playwright-core at 1280px and 390px, switch off and on; screenshots in .ui-check/ (gitignored)
 
 Structure:
 - src/lib: pure functions for eligibility, relevance, and cost math, plus types
@@ -45,6 +45,7 @@ Hard rules:
 - Calendar import never drops content silently: unreadable or unsupported content goes in the import report. Files over 2 MB, or more than 10,000 occurrences, are rejected.
 - Coverage: a date no imported calendar covers is never reported free; the result is "calendar coverage incomplete". Manual commitments don't add coverage.
 - Hard conflicts are only clashes with attendance sessions or travel (including overlapping shortlisted events). An exam inside the prep buffer, a passed application deadline and an ended event are strong soft warnings (`strong: true`).
+- "Use my calendar" switch (src/lib/calendarToggle.ts, useCalendarEnabled, CalendarToggle in the header): off by default. When off, hide the Calendar nav link, import prompts, Profile travel/buffer settings and every feasibility box; cards don't mention feasibility; useStudentContext returns status "off" and the engine never runs. Turning it off never deletes data (the Calendar page says it's still saved and points to Privacy); only Delete my data or the Calendar page's delete button removes it. New attendance UI must be gated on the switch.
 - UI: show the feasibility status before relevance, and never hide a hard conflict behind a recommendation or a count on cards. With no calendar connected, say "Attendance feasibility has not been checked" (conflicts from manual commitments still show). Uncovered dates say "Calendar coverage incomplete". Always show the assumptions used.
 - Every new localStorage key must be added to ALL_STORAGE_KEYS (a test enforces this) and described on the privacy page. The UI must not name the AI vendor (the secrets test bans "GEMINI" in frontend files).
 - Feasibility: transparent and cancelled events never block time; an assignment is a deadline (a point in time), not a block; overnight gaps between sessions aren't required; a null location or missing travel time makes travel "Needs confirmation", never zero; unknown event hours use a labelled conservative whole-day window; `mandatory: null` sessions are treated as required.

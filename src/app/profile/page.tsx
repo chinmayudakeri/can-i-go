@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { StateMessage } from "@/components/StateMessage";
+import { useCalendarEnabled } from "@/hooks/useCalendarEnabled";
 import { useProfile } from "@/hooks/useProfile";
 import { YEAR_LABELS } from "@/lib/eligibility";
 import { TOPICS, TRANSPORT_LABELS } from "@/lib/format";
@@ -48,6 +49,8 @@ function ProfileForm({
   onDelete: () => void;
 }) {
   const [draft, setDraft] = useState<StudentProfile>(initial ?? EMPTY_PROFILE);
+  // Attendance assumptions only show with "Use my calendar" on. Hidden values are kept, not cleared.
+  const { enabled: calendarOn } = useCalendarEnabled();
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const set = <K extends keyof StudentProfile>(key: K, value: StudentProfile[K]) => {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -188,59 +191,61 @@ function ProfileForm({
         </div>
       </fieldset>
 
-      <fieldset aria-describedby="assumptions-help">
-        <legend>Attendance assumptions</legend>
-        <p id="assumptions-help" className="muted small">
-          Used to check whether you can get to an event and back around your calendar. We don&apos;t look up maps or
-          routes: these are your own estimates, and every result says which values it used.
-        </p>
-        <label className="field">
-          <span>Usual travel time to an in-person event (minutes, one way)</span>
-          <input
-            type="number"
-            min={0}
-            step={5}
-            inputMode="numeric"
-            aria-describedby="travel-help"
-            value={draft.travelMinutes ?? ""}
-            onChange={(e) => set("travelMinutes", numberOrNull(e.target.value))}
-          />
-          <small id="travel-help" className="muted">
-            Leave empty if you don&apos;t know: travel will say &quot;Needs confirmation&quot;. You can set a different time
-            for each shortlisted event.
-          </small>
-        </label>
-        <label className="field">
-          <span>Arrive this many minutes early</span>
-          <input
-            type="number"
-            min={0}
-            step={5}
-            inputMode="numeric"
-            aria-describedby="buffer-help"
-            value={draft.arrivalBufferMinutes}
-            onChange={(e) => set("arrivalBufferMinutes", numberOrNull(e.target.value) ?? DEFAULT_ARRIVAL_BUFFER_MINUTES)}
-          />
-          <small id="buffer-help" className="muted">
-            Time to check in and find the room before the first session.
-          </small>
-        </label>
-        <label className="field">
-          <span>Days to keep free before an exam</span>
-          <input
-            type="number"
-            min={0}
-            step={1}
-            inputMode="numeric"
-            aria-describedby="prep-help"
-            value={draft.examPrepDays}
-            onChange={(e) => set("examPrepDays", Math.round(numberOrNull(e.target.value) ?? DEFAULT_EXAM_PREP_DAYS))}
-          />
-          <small id="prep-help" className="muted">
-            An exam within this many days after an event gets a strong warning: you could still go, but it eats into study time.
-          </small>
-        </label>
-      </fieldset>
+      {calendarOn && (
+        <fieldset aria-describedby="assumptions-help">
+          <legend>Attendance assumptions</legend>
+          <p id="assumptions-help" className="muted small">
+            Used to check whether you can get to an event and back around your calendar. We don&apos;t look up maps or
+            routes: these are your own estimates, and every result says which values it used.
+          </p>
+          <label className="field">
+            <span>Usual travel time to an in-person event (minutes, one way)</span>
+            <input
+              type="number"
+              min={0}
+              step={5}
+              inputMode="numeric"
+              aria-describedby="travel-help"
+              value={draft.travelMinutes ?? ""}
+              onChange={(e) => set("travelMinutes", numberOrNull(e.target.value))}
+            />
+            <small id="travel-help" className="muted">
+              Leave empty if you don&apos;t know: travel will say &quot;Needs confirmation&quot;. You can set a different time
+              for each shortlisted event.
+            </small>
+          </label>
+          <label className="field">
+            <span>Arrive this many minutes early</span>
+            <input
+              type="number"
+              min={0}
+              step={5}
+              inputMode="numeric"
+              aria-describedby="buffer-help"
+              value={draft.arrivalBufferMinutes}
+              onChange={(e) => set("arrivalBufferMinutes", numberOrNull(e.target.value) ?? DEFAULT_ARRIVAL_BUFFER_MINUTES)}
+            />
+            <small id="buffer-help" className="muted">
+              Time to check in and find the room before the first session.
+            </small>
+          </label>
+          <label className="field">
+            <span>Days to keep free before an exam</span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              aria-describedby="prep-help"
+              value={draft.examPrepDays}
+              onChange={(e) => set("examPrepDays", Math.round(numberOrNull(e.target.value) ?? DEFAULT_EXAM_PREP_DAYS))}
+            />
+            <small id="prep-help" className="muted">
+              An exam within this many days after an event gets a strong warning: you could still go, but it eats into study time.
+            </small>
+          </label>
+        </fieldset>
+      )}
 
       <fieldset>
         <legend>Budget</legend>

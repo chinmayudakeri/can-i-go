@@ -2,7 +2,9 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { StateMessage } from "@/components/StateMessage";
+import Link from "next/link";
 import { useCalendarData } from "@/hooks/useCalendarData";
+import { useCalendarEnabled } from "@/hooks/useCalendarEnabled";
 import { parseManualCommitment } from "@/lib/calendar/commitments";
 import { MAX_ICS_BYTES, parseIcs, tooLargeResult } from "@/lib/calendar/parseIcs";
 import { MANUAL_COMMITMENT_KINDS, type Commitment, type ImportedCalendar, type ImportReport, type ManualCommitmentKind } from "@/lib/calendar/types";
@@ -38,6 +40,7 @@ type Outcome = { name: string; report: ImportReport; added: number | null; dupli
 
 export default function CalendarPage() {
   const data = useCalendarData();
+  const toggle = useCalendarEnabled();
   const [timezone, setTimezone] = useState("America/Toronto");
   useEffect(() => setTimezone(browserTimezone()), []);
 
@@ -50,8 +53,15 @@ export default function CalendarPage() {
           this browser and saved only here (localStorage). Nothing is uploaded.
         </p>
       </div>
-      {data.state.status === "loading" ? (
+      {data.state.status === "loading" || !toggle.ready ? (
         <StateMessage kind="loading" title="Loading your calendars…" />
+      ) : !toggle.enabled ? (
+        <CalendarOff
+          savedCalendars={data.state.status === "ready" ? data.state.store.calendars.length : 0}
+          savedCommitments={data.state.status === "ready" ? data.state.commitments.length : 0}
+          readError={data.state.status === "error"}
+          onTurnOn={() => toggle.setEnabled(true)}
+        />
       ) : data.state.status === "error" ? (
         <StateMessage kind="error" title="Couldn't read your saved calendar data">
           <p>{data.state.error}</p>
@@ -70,6 +80,55 @@ export default function CalendarPage() {
         />
       )}
     </>
+  );
+}
+
+/** "Use my calendar" is off: no import, no checks. Saved data is kept and only described. */
+function CalendarOff({
+  savedCalendars,
+  savedCommitments,
+  readError,
+  onTurnOn,
+}: {
+  savedCalendars: number;
+  savedCommitments: number;
+  readError: boolean;
+  onTurnOn: () => string | null;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const hasData = savedCalendars > 0 || savedCommitments > 0 || readError;
+  return (
+    <section className="panel" aria-labelledby="off-heading">
+      <h2 id="off-heading">Calendar checks are off</h2>
+      <p>
+        With <strong>Use my calendar</strong> off, Can I Go? doesn&apos;t check events against your schedule and doesn&apos;t
+        show attendance on any page. Turn it on to import calendars, add commitments and see whether you can attend.
+      </p>
+      {hasData ? (
+        <p className="notice notice-strong" role="status">
+          Your calendar data is still saved on this device. Delete it on the <Link href="/privacy">Privacy page</Link>.
+          {!readError && (
+            <span className="small muted">
+              {" "}
+              ({savedCalendars} calendar{savedCalendars === 1 ? "" : "s"}, {savedCommitments} commitment{savedCommitments === 1 ? "" : "s"}; turning
+              the switch back on restores them.)
+            </span>
+          )}
+        </p>
+      ) : (
+        <p className="muted">Nothing from a calendar is saved on this device.</p>
+      )}
+      <div className="form-actions">
+        <button type="button" onClick={() => setError(onTurnOn())}>
+          Turn on calendar checks
+        </button>
+        {error && (
+          <span role="alert" className="error-text">
+            {error}
+          </span>
+        )}
+      </div>
+    </section>
   );
 }
 

@@ -83,6 +83,8 @@ function EventDetail({
   const item = useMemo(() => buildFeedItem(o, profile, now), [o, profile, now]);
   const { state: student, shortlist } = useStudentContext(opportunities, profile);
   const feasibility = useMemo(() => (student.status === "ready" ? feasibilityFor(o, student.ctx, now) : null), [o, student, now]);
+  // Hidden while the switch is off, and while it's still being read (so it doesn't flash).
+  const showFeasibility = student.status === "ready";
   const { eligibility, deadline, costs, relevance } = item;
   const sources = [...new Set([o.sourceUrl, ...(o.sourceUrls ?? [])])];
 
@@ -148,16 +150,22 @@ function EventDetail({
           <dd>
             {o.teamSize ? (o.teamSize.min === o.teamSize.max ? o.teamSize.min : `${o.teamSize.min}–${o.teamSize.max}`) : "Not stated"}
           </dd>
-          <dt>Calendar</dt>
-          <dd>{feasibility ? feasibility.view.label : "Checking…"} (see below)</dd>
+          {showFeasibility && (
+            <>
+              <dt>Calendar</dt>
+              <dd>{feasibility ? feasibility.view.label : "Checking…"} (see below)</dd>
+            </>
+          )}
         </dl>
       </section>
 
-      <FeasibilityPanel
-        feasibility={feasibility}
-        coverage={student.status === "ready" ? student.ctx.coverage : []}
-        calendarError={student.status === "ready" ? student.calendarError : null}
-      />
+      {showFeasibility && (
+        <FeasibilityPanel
+          feasibility={feasibility}
+          coverage={student.status === "ready" ? student.ctx.coverage : []}
+          calendarError={student.status === "ready" ? student.calendarError : null}
+        />
+      )}
 
       <section className="panel">
         <h2>Application deadline</h2>

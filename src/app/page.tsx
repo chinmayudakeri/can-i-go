@@ -9,7 +9,7 @@ import { useNow } from "@/hooks/useNow";
 import { useOpportunities } from "@/hooks/useOpportunities";
 import { useProfile } from "@/hooks/useProfile";
 import { useStudentContext, type StudentContextState } from "@/hooks/useStudentContext";
-import { feasibilityFor } from "@/lib/feasibility/forOpportunity";
+import { feasibilityForAll } from "@/lib/feasibility/forOpportunity";
 import { ELIGIBILITY_LABELS } from "@/lib/eligibility";
 import { DEFAULT_FILTERS, getFeed, getFilterOptions, type FeedFilters, type FeedItem, type SortKey } from "@/lib/feed";
 import { parseFeedParams, toFeedParams } from "@/lib/feedParams";
@@ -353,9 +353,11 @@ function FeedSection({
   shortlist: ShortlistProps;
 }) {
   const checks = useMemo(
-    () => new Map(student.status === "ready" ? items.map((i) => [i.opportunity.id, feasibilityFor(i.opportunity, student.ctx, now)]) : []),
+    () => feasibilityForAll(items.map((i) => i.opportunity), student.status === "ready" ? student.ctx : null, now),
     [items, student, now],
   );
+  // Off: cards say nothing about attendance. Loading: the box shows "Checking…".
+  const showFeasibility = student.status !== "off";
   return (
     <section className="feed-section" aria-labelledby={id}>
       <h2 id={id}>
@@ -371,7 +373,7 @@ function FeedSection({
               key={item.opportunity.id}
               item={item}
               now={now}
-              feasibility={checks.get(item.opportunity.id) ?? null}
+              feasibility={showFeasibility ? (checks.get(item.opportunity.id) ?? null) : "off"}
               saved={shortlist.isSaved(item.opportunity.id)}
               onToggleSave={() => shortlist.toggle(item.opportunity.id)}
             />

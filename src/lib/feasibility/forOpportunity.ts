@@ -62,3 +62,12 @@ export function feasibilityFor(opp: Opportunity, ctx: StudentContext, now: Date)
   });
   return { result, view: feasibilityView(result, ctx.calendarsConnected), used };
 }
+
+/**
+ * Feasibility for each opportunity. With calendar checks switched off there is
+ * no context, and the engine isn't run at all.
+ */
+export function feasibilityForAll(opportunities: Opportunity[], ctx: StudentContext | null, now: Date): Map<string, OpportunityFeasibility> {
+  if (!ctx) return new Map();
+  return new Map(opportunities.map((o) => [o.id, feasibilityFor(o, ctx, now)]));
+}

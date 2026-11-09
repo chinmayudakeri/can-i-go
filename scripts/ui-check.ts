@@ -97,9 +97,15 @@ async function expectText(page: Page, where: string, text: string | RegExp): Pro
   }
 }
 
+async function expectAbsent(page: Page, where: string, text: RegExp): Promise<void> {
+  const body = await page.locator("main").innerText();
+  const m = text.exec(body);
+  if (m) fail(where, `should not show "${m[0]}"`);
+}
+
 async function run(viewport: (typeof VIEWPORTS)[number]): Promise<void> {
   const browser = await chromium.launch({ channel: "chrome", headless: true });
-  const context = await browser.newContext({ viewport, acceptDownloads: true, timezoneId: "America/Toronto", colorScheme: "light" });
+  const context = await browser.newContext({ viewport, acceptDownloads: true, timezoneId: "America/Toronto", colorScheme: "light", reducedMotion: "reduce" });
   // tsx (esbuild keepNames) wraps functions passed to page.evaluate in a __name() helper the page doesn't have.
   await context.addInitScript("globalThis.__name = (f) => f;");
   const page = await context.newPage();
@@ -112,20 +118,42 @@ async function run(viewport: (typeof VIEWPORTS)[number]): Promise<void> {
     await checkPage(page, `${viewport.name} ${name}`);
   };
 
-  // 1. Discover with nothing saved: says feasibility hasn't been checked.
+  const toggle = page.getByRole("switch", { name: "Use my calendar" });
+  const switchIs = async (where: string, on: boolean) => {
+    if ((await toggle.getAttribute("aria-checked")) !== String(on)) fail(where, `"Use my calendar" should be ${on ? "on" : "off"}`);
+  };
+  const navHasCalendar = () => page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Calendar" }).count();
+
+  // 1. A new visitor: the switch is off and nothing mentions attendance.
+  await visit("/", "off discover");
+  await switchIs(`${viewport.name} off discover`, false);
+  if (await navHasCalendar()) fail(`${viewport.name} off discover`, "Calendar link shown while the switch is off");
+  await expectAbsent(page, `${viewport.name} off discover`, /attendance|Can you attend|Import a calendar/i);
+  await checkKeyboard(page, `${viewport.name} off discover`);
+  await shot("off-discover");
+  await visit("/profile", "off profile");
+  if (await page.getByLabel(/Usual travel time/).count()) fail(`${viewport.name} off profile`, "travel settings shown while off");
+  await visit("/events/demo-lakeshore-hacks", "off detail");
+  await expectAbsent(page, `${viewport.name} off detail`, /Can you attend\?|attendance feasibility/i);
+  await shot("off-detail");
+
+  // 2. Switch on with the keyboard.
   await visit("/", "discover");
+  await toggle.focus();
+  await page.keyboard.press("Space");
+  await switchIs(`${viewport.name} keyboard toggle`, true);
+  if (!(await navHasCalendar())) fail(`${viewport.name} on discover`, "Calendar link missing while on");
   await expectText(page, `${viewport.name} discover`, /attendance feasibility has not been checked/i);
-  await checkKeyboard(page, `${viewport.name} discover`);
   await shot("discover-empty");
 
-  // 2. Profile: travel time assumption.
+  // 3. Profile: travel time assumption.
   await visit("/profile", "profile");
   await page.getByLabel(/Usual travel time/).fill("30");
   await page.getByRole("button", { name: "Save profile" }).click();
   await expectText(page, `${viewport.name} profile`, "Saved.");
   await shot("profile");
 
-  // 3. Calendar: import two fictional calendars and add an exam.
+  // 4. Calendar: import two fictional calendars and add an exam.
   await visit("/calendar", "calendar");
   await expectText(page, `${viewport.name} calendar`, /No calendar connected/);
   await page.getByLabel(/\.ics files/).setInputFiles([path.join(FIXTURES, "adjacent.ics"), path.join(FIXTURES, "recurring.ics")]);
@@ -141,7 +169,7 @@ async function run(viewport: (typeof VIEWPORTS)[number]): Promise<void> {
   await checkPage(page, `${viewport.name} calendar after import`);
   await shot("calendar");
 
-  // 4. Detail page: findings, strong warnings and assumptions; shortlist it.
+  // 5. Detail page: findings, strong warnings and assumptions; shortlist it.
   await visit("/events/demo-lakeshore-hacks", "detail");
   await expectText(page, `${viewport.name} detail`, "Can you attend?");
   await expectText(page, `${viewport.name} detail`, /Strong warning:/);
@@ -151,7 +179,7 @@ async function run(viewport: (typeof VIEWPORTS)[number]): Promise<void> {
   await visit("/events/demo-pixel-forge-game-jam", "detail 2");
   await page.getByRole("button", { name: /to shortlist/ }).click();
 
-  // 5. Shortlist: compare, clashes, .ics export.
+  // 6. Shortlist: compare, clashes, .ics export.
   await visit("/shortlist", "shortlist");
   await expectText(page, `${viewport.name} shortlist`, /Clashes between shortlisted events/);
   await page.getByLabel("Application status").first().selectOption("applied");
@@ -161,20 +189,49 @@ async function run(viewport: (typeof VIEWPORTS)[number]): Promise<void> {
   await checkPage(page, `${viewport.name} shortlist after edits`);
   await shot("shortlist");
 
-  // 6. Privacy: export and delete everything.
+  // 7. Switch off: attendance disappears everywhere, but nothing is deleted.
+  const storedBefore = await page.evaluate(() => [localStorage.getItem("can-i-go.calendar.v1"), localStorage.getItem("can-i-go.commitments.v1")]);
+  await toggle.click();
+  await switchIs(`${viewport.name} toggle off`, false);
+  await expectAbsent(page, `${viewport.name} off shortlist`, /Can you attend\?|Clashes between|Travel time for this event/);
+  await shot("off-shortlist");
+  const storedAfter = await page.evaluate(() => [localStorage.getItem("can-i-go.calendar.v1"), localStorage.getItem("can-i-go.commitments.v1")]);
+  if (JSON.stringify(storedBefore) !== JSON.stringify(storedAfter) || !storedAfter[0]) fail(`${viewport.name} toggle off`, "calendar data changed when switching off");
+  await visit("/", "off discover with data");
+  await expectAbsent(page, `${viewport.name} off discover with data`, /attendance|conflict|Strong warning/i);
+  await page.getByRole("link", { name: "What's this?" }).click();
+  await page.waitForURL(/\/calendar$/);
+  await expectText(page, `${viewport.name} off calendar`, "Your calendar data is still saved on this device. Delete it on the Privacy page.");
+  await expectAbsent(page, `${viewport.name} off calendar`, /Import calendars|Your commitments/);
+  await checkPage(page, `${viewport.name} off calendar`);
+  await shot("off-calendar");
+
+  // 8. Switch back on: everything is restored.
+  await page.getByRole("button", { name: "Turn on calendar checks" }).click();
+  await switchIs(`${viewport.name} toggle on again`, true);
+  await expectText(page, `${viewport.name} calendar restored`, "Connected calendars (2)");
+  await expectText(page, `${viewport.name} calendar restored`, /MATH 999 final/);
+  await visit("/events/demo-lakeshore-hacks", "detail restored");
+  await expectText(page, `${viewport.name} detail restored`, /2 conflicts found/);
+
+  // 9. Privacy: switch state, export and delete everything.
   await visit("/privacy", "privacy");
+  await expectText(page, `${viewport.name} privacy`, "Use my calendar is on.");
+  await expectText(page, `${viewport.name} privacy`, /Either way, calendar data stays on this device/);
   const [json] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export my data" }).click()]);
   const exported = JSON.parse(readFileSync(await json.path(), "utf8"));
-  for (const key of ["can-i-go.profile.v1", "can-i-go.calendar.v1", "can-i-go.commitments.v1", "can-i-go.shortlist.v1"]) {
-    if (!exported.data?.[key]) fail(`${viewport.name} privacy`, `export is missing ${key}`);
+  for (const key of ["can-i-go.profile.v1", "can-i-go.calendar.v1", "can-i-go.commitments.v1", "can-i-go.shortlist.v1", "can-i-go.use-calendar.v1"]) {
+    if (exported.data?.[key] == null) fail(`${viewport.name} privacy`, `export is missing ${key}`);
   }
   await shot("privacy");
   await page.getByRole("button", { name: "Delete my data" }).click();
   await expectText(page, `${viewport.name} privacy`, /was deleted from this browser/);
+  await expectText(page, `${viewport.name} privacy`, "Use my calendar is off.");
+  await switchIs(`${viewport.name} after delete`, false);
   const left = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("can-i-go.")));
   if (left.length) fail(`${viewport.name} privacy`, `still stored after delete: ${left.join(", ")}`);
 
-  // 7. Dark mode, one page.
+  // 10. Dark mode, one page.
   const dark = await browser.newContext({ viewport, colorScheme: "dark" });
   const darkPage = await dark.newPage();
   await darkPage.goto(`${BASE}/`, { waitUntil: "networkidle" });

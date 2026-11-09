@@ -1,4 +1,5 @@
 import { CALENDAR_STORAGE_KEY, COMMITMENTS_STORAGE_KEY } from "./calendar/storage";
+import { CALENDAR_TOGGLE_STORAGE_KEY } from "./calendarToggle";
 import { PROFILE_STORAGE_KEY, type KeyValueStore } from "./profileStorage";
 import { SHORTLIST_STORAGE_KEY } from "./shortlist";
 
@@ -8,6 +9,7 @@ export const ALL_STORAGE_KEYS = [
   { key: CALENDAR_STORAGE_KEY, what: "Imported calendars: their names, coverage dates, import reports, and every event's title and times" },
   { key: COMMITMENTS_STORAGE_KEY, what: "Commitments you entered: classes, exams, assignment due times, work and personal" },
   { key: SHORTLIST_STORAGE_KEY, what: "Your shortlist: saved events, application status, notes, per-event travel times" },
+  { key: CALENDAR_TOGGLE_STORAGE_KEY, what: "Whether \"Use my calendar\" is on" },
 ] as const;
 
 export interface DataExport {

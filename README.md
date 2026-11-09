@@ -41,7 +41,7 @@ Open http://localhost:3000. Start at **Profile**, fill in a few fields and save.
 | `npm run ingest`    | Fetch configured feeds and extract events into `data/real/pending.json` |
 | `npm run ingest -- --url <link>` | Extract one event page you choose |
 | `npm run review`    | Approve or reject pending events in the terminal |
-| `npm run ui-check`  | After `npm run build`: drive the built app in headless Chrome at 1280px and 390px, checking layout, labels, keyboard focus and the main flows; screenshots go to `.ui-check/` |
+| `npm run ui-check`  | After `npm run build`: drive the built app in headless Chrome at 1280px and 390px, with the switch off and on, checking layout, labels, keyboard focus and the main flows; screenshots go to `.ui-check/` |
 
 With the Vitest extension installed, you can also run or debug single tests from the **Testing** sidebar (the flask icon).
 
@@ -69,6 +69,7 @@ src/lib/                Pure logic, no React. All tested.
   feasibility/          Attendance check, assumptions from the profile, status labels (Stage 3)
   shortlist.ts          Saved events, application status, notes (localStorage)
   privacyData.ts        Every stored key; export and delete all
+  calendarToggle.ts     The "Use my calendar" switch (off by default)
 scripts/ui-check.ts     Headless Chrome check of the built app
 src/sources/            Data source layer (DemoSource, RealSource)
 src/ingest/             Stage 2 pipeline. Node-only, never imported by the app
@@ -179,6 +180,15 @@ To add one, implement the interface (pass results through `parseOpportunities` f
 
 The logic lives in `src/lib/calendar` and `src/lib/feasibility` and is pure and tested. The pages use it in the browser.
 
+### The "Use my calendar" switch
+
+Calendar checks are optional. A switch in the header (**Use my calendar**, a keyboard-operable `role="switch"` that shows On/Off) turns them on or off. It's saved in localStorage (`can-i-go.use-calendar.v1`) and is **off for new visitors**.
+
+- **Off.** The Calendar nav link, import prompts, the travel and buffer settings on the Profile page, and every attendance box (cards, event pages, shortlist, comparison, shortlist clashes) are hidden. Cards don't mention feasibility at all, and the feasibility engine doesn't run. A "What's this?" link next to the switch still reaches the Calendar page.
+- **Turning it off deletes nothing.** Imported calendars, commitments and hidden profile values stay in the browser. The Calendar page then says "Your calendar data is still saved on this device. Delete it on the Privacy page." Turning the switch back on restores everything as it was.
+- **On.** Everything below works, and events with no calendar imported say "Attendance feasibility has not been checked".
+- **Privacy page.** It says whether the switch is on, and that calendar data stays local either way. **Delete my data** also resets the switch to off.
+
 ### Pages
 
 - **Calendar** (`/calendar`). Import one or more `.ics` files, each with a name and an optional note about what it covers. After import you see the import report (problems, notes and counts) and each calendar's coverage dates. Reimport replaces a calendar's events; Disconnect removes one calendar; Delete all calendar data removes everything. Add commitments by hand: class, exam, work and personal have a start and an end, and an assignment has only a due time. With no calendar connected, every event says **Attendance feasibility has not been checked**.
@@ -204,7 +214,7 @@ The logic lives in `src/lib/calendar` and `src/lib/feasibility` and is pure and 
 
 ### Privacy
 
-Calendar files are parsed in the browser, and everything is stored only in its localStorage: `can-i-go.profile.v1`, `can-i-go.calendar.v1`, `can-i-go.commitments.v1` and `can-i-go.shortlist.v1`. `ALL_STORAGE_KEYS` in `src/lib/privacyData.ts` lists them all, and a test fails if a new key isn't listed. Exports (`.ics`, JSON) are built in the browser and saved directly. None of this code makes network requests or imports `src/ingest`, and `src/lib/calendar/privacy.test.ts` enforces that.
+Calendar files are parsed in the browser, and everything is stored only in its localStorage: `can-i-go.profile.v1`, `can-i-go.calendar.v1`, `can-i-go.commitments.v1`, `can-i-go.shortlist.v1` and `can-i-go.use-calendar.v1`. `ALL_STORAGE_KEYS` in `src/lib/privacyData.ts` lists them all, and a test fails if a new key isn't listed. Exports (`.ics`, JSON) are built in the browser and saved directly. None of this code makes network requests or imports `src/ingest`, and `src/lib/calendar/privacy.test.ts` enforces that.
 
 ### Reading .ics files
 
